@@ -13,6 +13,7 @@ import {
   IconSettings,
   IconSchool,
   IconX,
+  IconLink, // ✅ ADDED THIS
 } from '@tabler/icons-react';
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ export function Sidebar({ role, userName, isOpen, onClose }: SidebarProps) {
     { icon: IconLayoutDashboard, label: 'Dashboard', href: '/dashboard/admin' },
     { icon: IconUsers, label: 'User Management', href: '/dashboard/admin/users' },
     { icon: IconUserCircle, label: 'Students', href: '/dashboard/admin/students' },
+    { icon: IconLink, label: 'Link Parents', href: '/dashboard/admin/link-parent' }, // ✅ ADDED THIS
     { icon: IconCalendarEvent, label: 'Attendance', href: '/dashboard/admin/attendance' },
     { icon: IconCreditCard, label: 'Payments', href: '/dashboard/admin/payments' },
     { icon: IconCertificate, label: 'Grades', href: '/dashboard/admin/grades' },
@@ -42,14 +44,12 @@ export function Sidebar({ role, userName, isOpen, onClose }: SidebarProps) {
     { icon: IconUserCircle, label: 'Students', href: '/dashboard/teacher/students' },
     { icon: IconCalendarEvent, label: 'Attendance', href: '/dashboard/teacher/attendance' },
     { icon: IconCertificate, label: 'Grades', href: '/dashboard/teacher/grades' },
-    { icon: IconReportAnalytics, label: 'Reports', href: '/dashboard/teacher/reports' },
   ];
 
   const parentMenuItems = [
     { icon: IconLayoutDashboard, label: 'Dashboard', href: '/dashboard/parent' },
     { icon: IconCalendarEvent, label: 'Attendance', href: '/dashboard/parent/attendance' },
     { icon: IconCertificate, label: 'Grades', href: '/dashboard/parent/grades' },
-    { icon: IconCreditCard, label: 'Payments', href: '/dashboard/parent/payments' },
   ];
 
   const menuItems = 
