@@ -1,43 +1,41 @@
 import mongoose from 'mongoose';
 
-// Clear model cache
-if (mongoose.models.Grade) {
-  delete mongoose.models.Grade;
-}
-
 const GradeSchema = new mongoose.Schema(
   {
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Student',
       required: [true, 'Student is required'],
-      index: true,
     },
     subject: {
       type: String,
       required: [true, 'Subject is required'],
       trim: true,
-      index: true,
     },
     testName: {
       type: String,
       required: [true, 'Test name is required'],
       trim: true,
     },
+    testType: {
+      type: String,
+      required: [true, 'Test type is required'],
+      enum: ['quiz', 'exam', 'homework', 'assignment'],
+      default: 'quiz',
+    },
     testDate: {
       type: Date,
       required: [true, 'Test date is required'],
-      index: true,
     },
     score: {
       type: Number,
       required: [true, 'Score is required'],
-      min: 0,
+      min: [0, 'Score cannot be negative'],
     },
     maxScore: {
       type: Number,
       required: [true, 'Max score is required'],
-      min: 1,
+      min: [1, 'Max score must be at least 1'],
     },
     percentage: {
       type: Number,
@@ -45,15 +43,19 @@ const GradeSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
-    testType: {
+    term: {
       type: String,
-      enum: ['quiz', 'exam', 'homework', 'assignment'],
-      default: 'exam',
-      index: true,
+      default: 'Term 1',
     },
     notes: {
       type: String,
       trim: true,
+      default: '',
+    },
+    remarks: {
+      type: String,
+      trim: true,
+      default: '',
     },
   },
   {
@@ -61,8 +63,9 @@ const GradeSchema = new mongoose.Schema(
   }
 );
 
-// Indexes for better query performance
+// Index for faster queries
 GradeSchema.index({ student: 1, subject: 1, testDate: -1 });
-GradeSchema.index({ testDate: -1 });
 
-export default mongoose.models.Grade || mongoose.model('Grade', GradeSchema);
+const Grade = mongoose.models.Grade || mongoose.model('Grade', GradeSchema);
+
+export default Grade;

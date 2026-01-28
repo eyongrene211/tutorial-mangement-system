@@ -3,9 +3,10 @@
 import { useAuth, useSignIn }   from '@clerk/nextjs';
 import { useRouter }            from 'next/navigation';
 import { useState, useEffect }  from 'react';
-import { motion }               from 'framer-motion';
 import { TutorialIllustration } from '@/components/auth/TutorialIllustration';
 import { LoginForm }            from '@/components/auth/LoginForm';
+import { LoadingSpinner }       from '@/components/auth/LoadingSpinner'; // NEW
+import { ErrorMessage }         from '@/components/auth/ErrorMessage'; // NEW (optional)
 
 export default function SignInPage() {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
@@ -17,23 +18,15 @@ export default function SignInPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already signed in
   useEffect(() => {
     if (authLoaded && isSignedIn) {
       router.push('/dashboard');
     }
   }, [authLoaded, isSignedIn, router]);
 
-  // Show loading while checking auth
+  // Use the LoadingSpinner component
   if (!authLoaded || isSignedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-          <p className="text-gray-700 text-lg font-semibold">Loading...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,38 +43,22 @@ export default function SignInPage() {
         password,
       });
 
-      console.log('Sign-in status:', result.status);
-
-      // With verification disabled, should go straight to complete
       if (result.status === 'complete') {
         await setActive({ session: result.createdSessionId });
-        
-        // Small delay for session sync
         await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Redirect to dashboard
         window.location.href = '/dashboard';
       } else {
-        // Log the unexpected status
-        console.error('Unexpected status:', result.status);
-        console.error('Full result:', result);
-        
-        setError(
-          `Sign-in requires additional verification. Please disable verification in Clerk Dashboard or contact your administrator. (Status: ${result.status})`
-        );
+        setError('Please verify your account or contact support.');
       }
     } catch (error: unknown) {
-      console.error('Sign-in error:', error);
+      console.error('Login error:', error);
       
       if (error && typeof error === 'object' && 'errors' in error) {
-        const clerkError = error as { errors?: Array<{ message?: string; code?: string }> };
-        const errorMessage = clerkError.errors?.[0]?.message || 'Invalid email or password';
-        const errorCode = clerkError.errors?.[0]?.code;
-        
-        console.error('Error code:', errorCode);
+        const clerkError = error as { errors?: Array<{ message?: string }> };
+        const errorMessage = clerkError.errors?.[0]?.message || 'Invalid credentials';
         setError(errorMessage);
       } else {
-        setError('Invalid email or password. Please check your credentials.');
+        setError('Wrong email or password. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -89,162 +66,130 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      {/* Animated Background Shapes */}
+    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-hidden">
+      {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl"
-          animate={{ scale: [1, 1.15, 1], x: [0, 30, 0] }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", repeatType: "loop" }}
-        />
-        <motion.div
-          className="absolute top-1/4 -right-40 w-80 h-80 bg-purple-400/20 rounded-full blur-3xl"
-          animate={{ scale: [1.1, 1, 1.1], y: [0, -30, 0] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut", repeatType: "loop" }}
-        />
-        <motion.div
-          className="absolute -bottom-40 left-1/4 w-96 h-96 bg-pink-400/20 rounded-full blur-3xl"
-          animate={{ scale: [1, 1.2, 1], x: [0, -30, 0] }}
-          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", repeatType: "loop" }}
-        />
+        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+        <div className="absolute top-0 right-0 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
       </div>
 
-      {/* Left Side - Illustration & Info */}
-      <motion.div
-        className="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative z-10"
-        initial={{ opacity: 0, x: -50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      >
-        <div className="max-w-lg">
-          <TutorialIllustration />
-          
-          <motion.div
-            className="mt-8 space-y-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
-          >
-            <h2 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              TutorialMS
-            </h2>
-            <p className="text-xl text-gray-700 font-semibold">
-              Afterschool Tutorial Management Made Easy
-            </p>
-            <p className="text-gray-600 text-lg leading-relaxed">
-              Empowering secondary and high school students through organized, effective afterschool learning sessions
-            </p>
-
-            {/* Feature Pills */}
-            <div className="flex flex-wrap gap-3 pt-4">
-              <motion.div
-                className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full border border-indigo-200 shadow-sm"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <span className="text-sm font-medium text-indigo-700">📚 Session Tracking</span>
-              </motion.div>
-              <motion.div
-                className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full border border-purple-200 shadow-sm"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <span className="text-sm font-medium text-purple-700">📊 Progress Reports</span>
-              </motion.div>
-              <motion.div
-                className="bg-white/70 backdrop-blur-sm px-4 py-2 rounded-full border border-pink-200 shadow-sm"
-                whileHover={{ scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <span className="text-sm font-medium text-pink-700">👨‍👩‍👧 Parent Portal</span>
-              </motion.div>
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
-
-      {/* Right Side - Login Form */}
-      <motion.div
-        className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-10"
-        initial={{ opacity: 0, x: 50 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-      >
-        <motion.div
-          className="w-full max-w-md"
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
-        >
-          {/* Card */}
-          <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-10 border border-white/40">
-            {/* Header */}
-            <motion.div
-              className="text-center mb-8"
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.5, ease: "easeOut" }}
-            >
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-3xl mb-5 shadow-lg">
-                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                Welcome Back!
+      <div className="flex flex-col lg:flex-row w-full relative z-10">
+        {/* Left side - Info */}
+        <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
+          <div className="max-w-md">
+            <TutorialIllustration />
+            
+            <div className="mt-10">
+              <h1 className="text-4xl font-bold text-gray-800 mb-3">
+                Tutorial Center System
               </h1>
-              <p className="text-gray-600">
-                Sign in to manage your tutorial sessions
+              <p className="text-lg text-gray-600 mb-6">
+                Simple management for afterschool tutorial programs
               </p>
-            </motion.div>
-
-            {/* Login Form */}
-            <LoginForm
-              email={email}
-              password={password}
-              error={error}
-              loading={loading}
-              isLoaded={isLoaded}
-              onEmailChange={setEmail}
-              onPasswordChange={setPassword}
-              onSubmit={handleSubmit}
-            />
-
-            {/* Footer */}
-            <motion.div
-              className="mt-8 space-y-3"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.7, duration: 0.5 }}
-            >
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300"></div>
+              
+              <div className="space-y-3">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mt-0.5">
+                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                    </svg>
+                  </div>
+                  <p className="ml-3 text-gray-700">Track student attendance and sessions</p>
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-4 bg-white/90 text-gray-600">Need help?</span>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mt-0.5">
+                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                    </svg>
+                  </div>
+                  <p className="ml-3 text-gray-700">Manage payments and fees</p>
+                </div>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mt-0.5">
+                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                    </svg>
+                  </div>
+                  <p className="ml-3 text-gray-700">Keep parents updated on progress</p>
                 </div>
               </div>
-              <p className="text-center text-sm text-gray-600">
-                Contact your administrator for account access or support
-              </p>
-            </motion.div>
+            </div>
           </div>
+        </div>
 
-          {/* Mobile Brand */}
-          <motion.div
-            className="lg:hidden mt-6 text-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
-          >
-            <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              TutorialMS
-            </h3>
-            <p className="text-gray-600 text-sm mt-1">Afterschool Tutorial Management</p>
-          </motion.div>
-        </motion.div>
-      </motion.div>
+        {/* Right side - Login form */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+          <div className="w-full max-w-md">
+            <div className="bg-white rounded-2xl shadow-xl p-8 lg:p-10">
+              {/* Logo/Header */}
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-xl mb-4">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                  Sign In
+                </h2>
+                <p className="text-gray-600 text-sm">
+                  Enter your credentials to continue
+                </p>
+              </div>
+
+              {/* Login Form */}
+              <LoginForm
+                email={email}
+                password={password}
+                error={error}
+                loading={loading}
+                isLoaded={isLoaded}
+                onEmailChange={setEmail}
+                onPasswordChange={setPassword}
+                onSubmit={handleSubmit}
+              />
+
+              {/* Footer note */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <p className="text-center text-sm text-gray-600">
+                  Need an account? Contact your administrator
+                </p>
+              </div>
+            </div>
+
+            {/* Mobile branding */}
+            <div className="lg:hidden mt-6 text-center">
+              <p className="text-gray-600 text-sm">Tutorial Center Management System</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes blob {
+          0% {
+            transform: translate(0px, 0px) scale(1);
+          }
+          33% {
+            transform: translate(30px, -50px) scale(1.1);
+          }
+          66% {
+            transform: translate(-20px, 20px) scale(0.9);
+          }
+          100% {
+            transform: translate(0px, 0px) scale(1);
+          }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+      `}</style>
     </div>
   );
 }

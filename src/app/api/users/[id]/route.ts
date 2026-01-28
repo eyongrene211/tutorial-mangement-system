@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
 import dbConnect                     from 'lib/mongodb';
 import User                          from 'models/User';
+import connectDB                     from 'lib/mongodb';
 
 export async function GET(
   request: NextRequest,
@@ -13,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await dbConnect();
+    await connectDB();
 
     const resolvedParams = await params;
     const user = await User.findById(resolvedParams.id).select('-__v');

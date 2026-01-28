@@ -358,7 +358,7 @@ export default function LinkParentPage() {
         </div>
 
         {/* Instructions */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        {/* <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
             How to link parents:
           </h3>
@@ -370,7 +370,7 @@ export default function LinkParentPage() {
             <li>Confirm the linking</li>
             <li>Parent will see student data on next login</li>
           </ol>
-        </div>
+        </div> */}
       </div>
     </DashboardLayout>
   );
