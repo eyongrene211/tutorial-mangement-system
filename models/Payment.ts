@@ -1,57 +1,101 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose from 'mongoose';
 
-export interface IPayment extends Document {
-  student: mongoose.Types.ObjectId;
-  amount: number;
+export interface IPayment extends mongoose.Document {
+  studentId: mongoose.Types.ObjectId;
+  parentId: mongoose.Types.ObjectId;
+  classLevel: string;
   month: string;
-  paymentDate: Date;
-  paymentMethod: 'cash' | 'mobile_money' | 'bank_transfer';
-  receiptNumber: string;
-  recordedBy: mongoose.Types.ObjectId;
-  notes?: string;
+  totalAmount: number;
+  amountPaid: number;
+  balance: number;
+  currency: string;
+  paymentStatus: 'not_paid' | 'partial' | 'completed' | 'overpaid';
+  payments: Array<{
+    amount: number;
+    paymentDate: Date;
+    paymentMethod: 'cash' | 'bank_transfer' | 'card' | 'mobile_money';
+    receiptNumber: string;
+    receivedBy: string;
+    notes?: string;
+  }>;
+  createdBy: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const PaymentSchema = new Schema<IPayment>(
+const PaymentSchema = new mongoose.Schema<IPayment>(
   {
-    student: {
-      type: Schema.Types.ObjectId,
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'Student',
-      required: [true, 'Student is required'],
+      required: true,
     },
-    amount: {
-      type: Number,
-      required: [true, 'Amount is required'],
-      min: 0,
+    parentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Parent',
+      required: true,
+    },
+    classLevel: {
+      type: String,
+      enum: ['Form1', 'Form2', 'Form3', 'Form4', 'Form5', 'LowerSixth', 'UpperSixth'],
+      required: true,
     },
     month: {
       type: String,
-      required: [true, 'Month is required'],
-      match: /^\d{4}-\d{2}$/,
+      required: true,
     },
-    paymentDate: {
-      type: Date,
-      required: [true, 'Payment date is required'],
+    totalAmount: {
+      type: Number,
+      required: true,
+      min: 0,
     },
-    paymentMethod: {
+    amountPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    balance: {
+      type: Number,
+      default: 0,
+    },
+    currency: {
       type: String,
-      enum: ['cash', 'mobile_money', 'bank_transfer'],
-      default: 'cash',
+      default: 'XAF',
+      required: true,
     },
-    receiptNumber: {
+    paymentStatus: {
       type: String,
-      required: [true, 'Receipt number is required'],
-      unique: true,
-      // REMOVED: index: true (causing duplicate)
+      enum: ['not_paid', 'partial', 'completed', 'overpaid'],
+      default: 'not_paid',
     },
-    recordedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Recorded by is required'],
-    },
-    notes: {
+    payments: [{
+      amount: {
+        type: Number,
+        required: true,
+      },
+      paymentDate: {
+        type: Date,
+        required: true,
+        default: Date.now,
+      },
+      paymentMethod: {
+        type: String,
+        enum: ['cash', 'bank_transfer', 'card', 'mobile_money'],
+        required: true,
+      },
+      receiptNumber: {
+        type: String,
+        required: true,
+      },
+      receivedBy: {
+        type: String,
+        required: true,
+      },
+      notes: String,
+    }],
+    createdBy: {
       type: String,
+      required: true,
     },
   },
   {
@@ -59,8 +103,23 @@ const PaymentSchema = new Schema<IPayment>(
   }
 );
 
-PaymentSchema.index({ student: 1, month: 1 });
-PaymentSchema.index({ paymentDate: 1 });
-PaymentSchema.index({ receiptNumber: 1 });
+// Update balance and status before saving - FIXED VERSION
+PaymentSchema.pre('save', function(next) {
+  // Calculate balance
+  this.balance = this.totalAmount - this.amountPaid;
+  
+  // Determine payment status
+  if (this.amountPaid === 0) {
+    this.paymentStatus = 'not_paid';
+  } else if (this.amountPaid < this.totalAmount) {
+    this.paymentStatus = 'partial';
+  } else if (this.amountPaid === this.totalAmount) {
+    this.paymentStatus = 'completed';
+  } else {
+    this.paymentStatus = 'overpaid';
+  }
+  
+  next();
+});
 
 export default mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);

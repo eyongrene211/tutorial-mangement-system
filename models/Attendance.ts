@@ -4,40 +4,30 @@ export interface IAttendance extends Document {
   student: mongoose.Types.ObjectId;
   date: Date;
   status: 'present' | 'absent' | 'late' | 'excused';
-  subject: string;
-  remarks?: string;
-  recordedBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const AttendanceSchema = new Schema<IAttendance>(
+// Delete existing model
+if (mongoose.models.Attendance) {
+  delete mongoose.models.Attendance;
+}
+
+const AttendanceSchema: Schema = new Schema(
   {
     student: {
       type: Schema.Types.ObjectId,
       ref: 'Student',
-      required: [true, 'Student is required'],
+      required: true,
     },
     date: {
       type: Date,
-      required: [true, 'Date is required'],
+      required: true,
     },
     status: {
       type: String,
       enum: ['present', 'absent', 'late', 'excused'],
-      required: [true, 'Status is required'],
-    },
-    subject: {
-      type: String,
-      required: [true, 'Subject is required'],
-    },
-    remarks: {
-      type: String,
-    },
-    recordedBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Recorded by is required'],
+      required: true,
     },
   },
   {
@@ -45,8 +35,9 @@ const AttendanceSchema = new Schema<IAttendance>(
   }
 );
 
-AttendanceSchema.index({ student: 1, date: 1, subject: 1 });
-AttendanceSchema.index({ date: 1 });
-AttendanceSchema.index({ status: 1 });
+// Create compound index to prevent duplicate entries
+AttendanceSchema.index({ student: 1, date: 1 }, { unique: true });
 
-export default mongoose.models.Attendance || mongoose.model<IAttendance>('Attendance', AttendanceSchema);
+const Attendance = mongoose.models.Attendance || mongoose.model<IAttendance>('Attendance', AttendanceSchema);
+
+export default Attendance;

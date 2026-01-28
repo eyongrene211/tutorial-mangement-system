@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { IconX }               from '@tabler/icons-react';
-import toast                   from 'react-hot-toast';
 
 interface Student {
   _id: string;
@@ -37,11 +36,9 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
     try {
       const response = await fetch('/api/students');
       const data = await response.json();
-      console.log('Fetched students:', data); // Debug
       setStudents(data.students || []);
     } catch (error) {
       console.error('Error fetching students:', error);
-      toast.error('Failed to load students');
     }
   };
 
@@ -72,15 +69,15 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
       });
 
       if (response.ok) {
-        toast.success('Payment recorded successfully! ✅');
+        alert('Payment recorded successfully!');
         onSuccess();
       } else {
         const error = await response.json();
-        toast.error(`Error: ${error.error || 'Failed to record payment'}`);
+        alert(`Error: ${error.error || 'Failed to record payment'}`);
       }
     } catch (error) {
       console.error('Error recording payment:', error);
-      toast.error('Failed to record payment');
+      alert('Failed to record payment');
     } finally {
       setLoading(false);
     }
@@ -111,7 +108,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
               required
               value={formData.studentId}
               onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
             >
               <option value="">Select Student</option>
               {students.map((student) => (
@@ -120,9 +117,6 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
                 </option>
               ))}
             </select>
-            {students.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">No students found. Please add students first.</p>
-            )}
           </div>
 
           {/* Month */}
@@ -135,7 +129,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
               placeholder={getCurrentMonth()}
               value={formData.month}
               onChange={(e) => setFormData({ ...formData, month: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Leave empty to use current month ({getCurrentMonth()})
@@ -145,7 +139,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
           {/* Total Amount */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Monthly Fee (FCFA) *
+              Monthly Fee (XAF) *
             </label>
             <input
               type="number"
@@ -154,7 +148,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
               step="100"
               value={formData.totalAmount}
               onChange={(e) => setFormData({ ...formData, totalAmount: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
               placeholder="e.g., 20000"
             />
           </div>
@@ -162,7 +156,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
           {/* Payment Amount */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              Amount Paid (FCFA) *
+              Amount Paid (XAF) *
             </label>
             <input
               type="number"
@@ -171,7 +165,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
               step="100"
               value={formData.paymentAmount}
               onChange={(e) => setFormData({ ...formData, paymentAmount: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
               placeholder="e.g., 20000 (full) or 10000 (partial)"
             />
           </div>
@@ -185,7 +179,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
               required
               value={formData.paymentMethod}
               onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
             >
               <option value="cash">Cash</option>
               <option value="bank_transfer">Bank Transfer</option>
@@ -204,7 +198,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
               required
               value={formData.paymentDate}
               onChange={(e) => setFormData({ ...formData, paymentDate: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
             />
           </div>
 
@@ -217,7 +211,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
               rows={3}
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
               placeholder="Additional notes..."
             />
           </div>
@@ -234,7 +228,7 @@ export default function PaymentModal({ onClose, onSuccess }: PaymentModalProps) 
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
             >
               {loading ? 'Recording...' : 'Record Payment'}
             </button>

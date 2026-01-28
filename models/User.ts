@@ -1,16 +1,32 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
+
+// TypeScript interface
+export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
+  clerkUserId: string | null;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: 'admin' | 'teacher' | 'parent';
+  phone: string;
+  status: 'active' | 'inactive';
+  studentId?: mongoose.Types.ObjectId | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // Delete existing model to avoid conflicts
 if (mongoose.models.User) {
   delete mongoose.models.User;
 }
 
-const UserSchema = new mongoose.Schema(
+const UserSchema = new Schema<IUser>(
   {
     clerkUserId: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
+      default: null,
     },
     email: {
       type: String,
@@ -33,6 +49,7 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ['admin', 'teacher', 'parent'],
       default: 'teacher',
+      required: true,
     },
     phone: {
       type: String,
@@ -45,7 +62,7 @@ const UserSchema = new mongoose.Schema(
       default: 'active',
     },
     studentId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: 'Student',
       default: null,
     },
@@ -55,6 +72,8 @@ const UserSchema = new mongoose.Schema(
   }
 );
 
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
+// ✅ REMOVED DUPLICATE INDEXES - email and clerkUserId already have unique: true
+
+const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
 export default User;

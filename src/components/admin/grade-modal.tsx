@@ -21,6 +21,7 @@ interface Grade {
   maxScore: number;
   testType: string;
   notes?: string;
+  remarks?: string; // ✅ ADDED THIS
 }
 
 interface GradeModalProps {
@@ -63,6 +64,7 @@ export function GradeModal({ student, grade, onClose, onSave }: GradeModalProps)
     maxScore: '20',
     testType: 'quiz',
     notes: '',
+    remarks: '', // ✅ ADDED THIS
   });
 
   useEffect(() => {
@@ -84,6 +86,7 @@ export function GradeModal({ student, grade, onClose, onSave }: GradeModalProps)
         maxScore: grade.maxScore.toString(),
         testType: grade.testType,
         notes: grade.notes || '',
+        remarks: grade.remarks || '', // ✅ ADDED THIS
       });
     } else if (student) {
       // Pre-select student if passed
@@ -189,7 +192,10 @@ export function GradeModal({ student, grade, onClose, onSave }: GradeModalProps)
         return;
       }
 
-      // ✅ Build payload with all required fields
+      // ✅ Calculate percentage
+      const percentage = Math.round((score / maxScore) * 100);
+
+      // ✅ Build payload with all required fields including remarks
       const payload = {
         student: formData.studentId,
         subject: formData.subject,
@@ -197,8 +203,11 @@ export function GradeModal({ student, grade, onClose, onSave }: GradeModalProps)
         testDate: formData.testDate,
         score: score,
         maxScore: maxScore,
+        percentage: percentage, // ✅ Include calculated percentage
         testType: formData.testType,
+        term: 'Term 1', // ✅ Add default term
         notes: formData.notes.trim() || undefined,
+        remarks: formData.remarks.trim() || '', // ✅ ADDED THIS
       };
 
       console.log('📤 Sending grade payload:', payload);
@@ -432,18 +441,36 @@ export function GradeModal({ student, grade, onClose, onSave }: GradeModalProps)
               </div>
             )}
 
+            {/* ✅ REMARKS FIELD - NEW */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Remarks (For Parents)
+              </label>
+              <textarea
+                disabled={loading}
+                value={formData.remarks}
+                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                rows={2}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none disabled:opacity-50"
+                placeholder="e.g., 'Excellent work!', 'Needs improvement in algebra'"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                This will be visible to parents when they view grades
+              </p>
+            </div>
+
             {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Notes (Optional)
+                Internal Notes (Optional)
               </label>
               <textarea
                 disabled={loading}
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows={3}
+                rows={2}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none disabled:opacity-50"
-                placeholder="Additional notes about the test..."
+                placeholder="Private notes for teachers/admin only..."
               />
             </div>
 

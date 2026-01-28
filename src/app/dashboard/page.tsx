@@ -1,86 +1,48 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
-import { redirect }          from 'next/navigation';
-import { DashboardLayout }   from '@/components/layout/dashboard-layout';
-import connectDB             from 'lib/mongodb';
-import dbConnect             from 'lib/mongodb';
-import User                  from 'models/User';
-export default async function DashboardPage() {
+import { auth }     from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import dbConnect    from 'lib/mongodb';
+import User         from 'models/User';
+import Link         from 'next/link';
+
+export default async function DashboardRouter() {
   const { userId } = await auth();
 
   if (!userId) {
     redirect('/sign-in');
   }
 
-  const clerkUser = await currentUser();
+  await dbConnect();
+  const user = await User.findOne({ clerkUserId: userId }).lean();
 
-  if (!clerkUser) {
+  if (!user) {
     redirect('/sign-in');
   }
 
-  await connectDB();
-  await dbConnect();
-
-  let dbUser = await User.findOne({ clerkUserId: userId });
-
-  // Auto-create user if doesn't exist
-  if (!dbUser) {
-    const metadata = (clerkUser.publicMetadata || {}) as Record<string, unknown>;
-    const role = String(metadata.role || 'teacher');
-
-    try {
-      dbUser = await User.create({
-        clerkUserId: userId,
-        email: clerkUser.emailAddresses[0].emailAddress,
-        firstName: clerkUser.firstName || 'User',
-        lastName: clerkUser.lastName || '',
-        role: role,
-        phone: '',
-        status: 'active',
-      });
-      console.log('✅ Created new user:', dbUser);
-    } catch (error) {
-      console.error('❌ Error creating user:', error);
-      
-      // Try to find by email in case of race condition
-      const userEmail = clerkUser.emailAddresses[0].emailAddress;
-      dbUser = await User.findOne({ email: userEmail });
-      
-      if (!dbUser) {
-        // Last resort - try clerkUserId again
-        dbUser = await User.findOne({ clerkUserId: userId });
-      }
-      
-      if (!dbUser) {
-        throw error;
-      }
-    }
-  }
-
-  // Construct full name for display
-  const fullName = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User';
-
   // Redirect based on role
-  if (dbUser.role === 'admin') {
-    redirect('/dashboard/admin');
-  } else if (dbUser.role === 'teacher') {
-    redirect('/dashboard/teacher');
-  } else if (dbUser.role === 'parent') {
-    redirect('/dashboard/parent');
-  }
-
-  // Default dashboard for unknown roles
-  return (
-    <DashboardLayout userName={fullName} role={dbUser.role}>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome back, {clerkUser.firstName}! 👋
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Your dashboard is loading...
-          </p>
+  switch (user.role) {
+    case 'admin':
+      redirect('/dashboard/admin');
+    case 'teacher':
+      redirect('/dashboard/teacher');
+    case 'parent':
+      redirect('/dashboard/parent');
+    default:
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center max-w-md p-8 bg-white rounded-2xl shadow-lg">
+            <div className="text-6xl mb-4">⏳</div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-3">Account Setup Pending</h1>
+            <p className="text-gray-600 mb-6">
+              Your tutorial account is being configured. Please contact your administrator for access.
+            </p>
+            <Link
+              href="/sign-in"
+              className="inline-block bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition"
+            >
+              Back to Sign In
+            </Link>
+          </div>
         </div>
-      </div>
-    </DashboardLayout>
-  );
+      );
+  }
 }

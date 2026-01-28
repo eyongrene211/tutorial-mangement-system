@@ -1,41 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
-import connectDB                     from '../../../../../lib/mongodb';
-import User                          from '../../../../../models/User';
+import dbConnect                     from 'lib/mongodb';
+import User                          from 'models/User';
 
-
-interface RouteParams {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-interface UpdateUserData {
-  firstName: string;
-  lastName: string;
-  role: string;
-  phone?: string;
-  address?: string;
-  status?: string;
-  subjects?: string[];
-  students?: string[];
-}
-
-// GET single user
-export async function GET(request: NextRequest, context: RouteParams) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
 
-    const params = await context.params;
-    const { id } = params;
-
-    const user = await User.findById(id).populate('students', 'firstName lastName classLevel');
+    const resolvedParams = await params;
+    const user = await User.findById(resolvedParams.id).select('-__v');
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -44,57 +25,79 @@ export async function GET(request: NextRequest, context: RouteParams) {
     return NextResponse.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
-    return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch user' },
+      { status: 500 }
+    );
   }
 }
 
-// PUT - Update user
-export async function PUT(request: NextRequest, context: RouteParams) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
 
-    const currentUser = await User.findOne({ clerkId: userId });
-    if (!currentUser || currentUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Access denied. Admins only.' }, { status: 403 });
+    // Check if requesting user is admin
+    const requestingUser = await User.findOne({ clerkUserId: userId });
+    
+    console.log('🔍 Requesting user:', requestingUser?.email, 'Role:', requestingUser?.role);
+    
+    if (!requestingUser) {
+      return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
     }
 
-    const params = await context.params;
-    const { id } = params;
+    if (requestingUser.role !== 'admin') {
+      return NextResponse.json({ 
+        error: 'Access denied. Admins only.',
+        userRole: requestingUser.role 
+      }, { status: 403 });
+    }
+
     const body = await request.json();
-    const { firstName, lastName, role, subjects, students, phone, address, status } = body;
+    const { email, firstName, lastName, role, phone, status, studentId } = body;
 
-    const updateData: UpdateUserData = {
-      firstName,
-      lastName,
-      role,
-      phone,
-      address,
-      status,
-    };
-
-    // Only update subjects if role is tutor
-    if (role === 'tutor') {
-      updateData.subjects = subjects || [];
-    } else {
-      updateData.subjects = [];
+    // Validate required fields
+    if (!email || !firstName || !lastName) {
+      return NextResponse.json(
+        { error: 'Email, first name, and last name are required' },
+        { status: 400 }
+      );
     }
 
-    // Only update students if role is parent
-    if (role === 'parent') {
-      updateData.students = students || [];
-    } else {
-      updateData.students = [];
+    const resolvedParams = await params;
+
+    // Check if email is already taken by another user
+    const existingUser = await User.findOne({ 
+      email, 
+      _id: { $ne: resolvedParams.id } 
+    });
+    
+    if (existingUser) {
+      return NextResponse.json(
+        { error: 'Email already in use by another user' },
+        { status: 400 }
+      );
     }
 
+    // Update user
     const updatedUser = await User.findByIdAndUpdate(
-      id,
-      updateData,
+      resolvedParams.id,
+      {
+        email,
+        firstName,
+        lastName,
+        role: role || 'teacher',
+        phone: phone || '',
+        status: status || 'active',
+        studentId: studentId || null,
+      },
       { new: true, runValidators: true }
     );
 
@@ -102,40 +105,52 @@ export async function PUT(request: NextRequest, context: RouteParams) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    console.log('✅ Updated user:', updatedUser.email, 'StudentID:', updatedUser.studentId);
+
     return NextResponse.json(updatedUser);
   } catch (error) {
     console.error('Error updating user:', error);
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to update user' },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE - Delete user
-export async function DELETE(request: NextRequest, context: RouteParams) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const { userId } = await auth();
-
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await connectDB();
+    await dbConnect();
 
-    const currentUser = await User.findOne({ clerkId: userId });
-    if (!currentUser || currentUser.role !== 'admin') {
+    // Check if requesting user is admin
+    const requestingUser = await User.findOne({ clerkUserId: userId });
+    
+    if (!requestingUser || requestingUser.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied. Admins only.' }, { status: 403 });
     }
 
-    const params = await context.params;
-    const { id } = params;
-    const deletedUser = await User.findByIdAndDelete(id);
+    const resolvedParams = await params;
+    const deletedUser = await User.findByIdAndDelete(resolvedParams.id);
 
     if (!deletedUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    console.log('✅ Deleted user:', deletedUser.email);
+
     return NextResponse.json({ message: 'User deleted successfully' });
   } catch (error) {
     console.error('Error deleting user:', error);
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to delete user' },
+      { status: 500 }
+    );
   }
 }

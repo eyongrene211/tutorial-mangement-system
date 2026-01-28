@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth }                      from '@clerk/nextjs/server';
+import { auth, currentUser }         from '@clerk/nextjs/server';
 import dbConnect                     from 'lib/mongodb';
 import User                          from 'models/User';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -15,26 +12,43 @@ export async function GET(
 
     await dbConnect();
 
-    const user = await User.findById(params.id).select('-__v');
-
-    if (!user) {
+    const clerkUser = await currentUser();
+    if (!clerkUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    // Find the requesting user in database
+    const requestingUser = await User.findOne({ clerkUserId: userId });
+    
+    if (!requestingUser) {
+      return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
+    }
+
+    // Check if user is admin
+    if (requestingUser.role !== 'admin') {
+      return NextResponse.json({ error: 'Access denied. Admins only.' }, { status: 403 });
+    }
+
+    // Fetch all users
+    const users = await User.find({})
+      .select('-__v')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log('✅ Fetched users:', users.length);
+    console.log('Parent users:', users.filter(u => u.role === 'parent').length);
+
+    return NextResponse.json(users);
   } catch (error) {
-    console.error('Error fetching user:', error);
+    console.error('Error fetching users:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch user' },
+      { error: 'Failed to fetch users' },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -43,7 +57,7 @@ export async function PUT(
 
     await dbConnect();
 
-    // Check if requesting user is admin
+    // Find the requesting user
     const requestingUser = await User.findOne({ clerkUserId: userId });
     
     if (!requestingUser || requestingUser.role !== 'admin') {
@@ -51,7 +65,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { email, firstName, lastName, role, phone, status, studentId } = body;
+    const { clerkUserId, email, firstName, lastName, role, phone, status, studentId } = body;
 
     // Validate required fields
     if (!email || !firstName || !lastName) {
@@ -61,82 +75,34 @@ export async function PUT(
       );
     }
 
-    // Check if email is already taken by another user
-    const existingUser = await User.findOne({ 
-      email, 
-      _id: { $ne: params.id } 
-    });
-    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
-        { error: 'Email already in use by another user' },
+        { error: 'User with this email already exists' },
         { status: 400 }
       );
     }
 
-    // Update user
-    const updatedUser = await User.findByIdAndUpdate(
-      params.id,
-      {
-        email,
-        firstName,
-        lastName,
-        role: role || 'teacher',
-        phone: phone || '',
-        status: status || 'active',
-        studentId: studentId || null, // ✅ ADDED THIS
-      },
-      { new: true, runValidators: true }
-    );
+    // Create new user
+    const newUser = await User.create({
+      clerkUserId: clerkUserId || null,
+      email,
+      firstName,
+      lastName,
+      role: role || 'teacher',
+      phone: phone || '',
+      status: status || 'active',
+      studentId: studentId || null,
+    });
 
-    if (!updatedUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    console.log('✅ Created user:', newUser.email, 'Role:', newUser.role);
 
-    console.log('✅ Updated user:', updatedUser.email);
-
-    return NextResponse.json(updatedUser);
+    return NextResponse.json(newUser, { status: 201 });
   } catch (error) {
-    console.error('Error updating user:', error);
+    console.error('Error creating user:', error);
     return NextResponse.json(
-      { error: 'Failed to update user' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await dbConnect();
-
-    // Check if requesting user is admin
-    const requestingUser = await User.findOne({ clerkUserId: userId });
-    
-    if (!requestingUser || requestingUser.role !== 'admin') {
-      return NextResponse.json({ error: 'Access denied. Admins only.' }, { status: 403 });
-    }
-
-    const deletedUser = await User.findByIdAndDelete(params.id);
-
-    if (!deletedUser) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    console.log('✅ Deleted user:', deletedUser.email);
-
-    return NextResponse.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete user' },
+      { error: 'Failed to create user' },
       { status: 500 }
     );
   }

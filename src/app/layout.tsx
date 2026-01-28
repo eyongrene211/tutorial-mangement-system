@@ -1,8 +1,9 @@
-import { ClerkProvider } from '@clerk/nextjs';
-import { ThemeProvider } from '@/components/providers/theme-provider';
+import { ClerkProvider }  from '@clerk/nextjs';
+import { ThemeProvider }  from '@/components/providers/theme-provider';
 import './globals.css';
-import type { Metadata } from 'next';
-import { Inter }         from 'next/font/google';
+import type { Metadata }  from 'next';
+import { Inter }          from 'next/font/google';
+import { ToastContainer } from '@/components/ui/toast';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -22,11 +23,12 @@ export default function RootLayout({
         <body className={inter.className}>
           <ThemeProvider
             attribute="class"
-            defaultTheme="light"
+            defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
             {children}
+            <ToastContainer />
           </ThemeProvider>
         </body>
       </html>
