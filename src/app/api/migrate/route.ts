@@ -31,10 +31,10 @@ export async function GET() {
     // Verify
     const users = await User.find({});
     const userList = users.map(user => ({
-      name: user.name,
+      name: user.name || `${user.firstName} ${user.lastName}`,
       email: user.email,
       phone: user.phone,
-      address: user.address,
+      address: user.address || 'N/A',
       status: user.status,
     }));
     

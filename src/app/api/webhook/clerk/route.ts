@@ -4,6 +4,7 @@ import { WebhookEvent } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import User             from '../../../../../models/User';
 import connectDB        from '../../../../../lib/mongodb';
+
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
@@ -51,11 +52,16 @@ export async function POST(req: Request) {
     const role = String(metadata.role || 'teacher');
     const studentId = metadata.studentId ? String(metadata.studentId) : null;
 
+    // ✅ FIXED: Use correct field names
     await User.create({
-      clerkId: id,
+      clerkUserId: id,
       email: email_addresses[0].email_address,
+      firstName: first_name || 'User',
+      lastName: last_name || '',
       name: `${first_name || ''} ${last_name || ''}`.trim() || 'User',
       role: role,
+      phone: '',
+      status: 'active',
       studentId: studentId,
     });
 

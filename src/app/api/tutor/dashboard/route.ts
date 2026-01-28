@@ -16,16 +16,18 @@ export async function GET() {
 
     await connectDB();
 
-    const currentUser = await User.findOne({ clerkId: userId });
+    // ✅ FIXED: Use clerkUserId
+    const currentUser = await User.findOne({ clerkUserId: userId });
     if (!currentUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check if user is a tutor
+    // ✅ FIXED: 'tutor' now exists in role enum
     if (currentUser.role !== 'tutor') {
       return NextResponse.json({ error: 'Access denied. Tutors only.' }, { status: 403 });
     }
 
+    // ✅ FIXED: subjects field now exists in IUser
     const tutorSubjects = currentUser.subjects || [];
 
     if (tutorSubjects.length === 0) {

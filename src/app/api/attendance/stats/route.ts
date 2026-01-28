@@ -4,7 +4,6 @@ import connectDB                     from '../../../../../lib/mongodb';
 import User                          from '../../../../../models/User';
 import Attendance                    from '../../../../../models/Attendance';
 
-
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -31,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     interface AttendanceQuery {
       date?: DateFilter;
-      student?: { $in: unknown[] };
+      student?: unknown; // ✅ Changed to allow both ObjectId and $in query
     }
 
     const query: AttendanceQuery = {};
@@ -48,9 +47,9 @@ export async function GET(request: NextRequest) {
       query.date = dateFilter;
     }
 
-    // Parents can only see their children's attendance
-    if (currentUser.role === 'parent' && currentUser.students) {
-      query.student = { $in: currentUser.students };
+    // ✅ FIXED: Parents can only see their child's attendance (singular studentId)
+    if (currentUser.role === 'parent' && currentUser.studentId) {
+      query.student = currentUser.studentId;
     }
 
     const attendance = await Attendance.find(query)

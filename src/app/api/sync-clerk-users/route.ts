@@ -17,8 +17,8 @@ export async function GET() {
     const client = await clerkClient();
     const clerkUser = await client.users.getUser(userId);
 
-    // Check if user exists in MongoDB
-    let dbUser = await User.findOne({ clerkId: userId });
+    // ✅ FIXED: Use clerkUserId instead of clerkId
+    let dbUser = await User.findOne({ clerkUserId: userId });
 
     if (!dbUser) {
       // Create user in MongoDB
@@ -26,11 +26,16 @@ export async function GET() {
       const role = String(metadata.role || 'teacher');
       const studentId = metadata.studentId ? String(metadata.studentId) : null;
 
+      // ✅ FIXED: Use correct field names
       dbUser = await User.create({
-        clerkId: userId,
+        clerkUserId: userId,
         email: clerkUser.emailAddresses[0].emailAddress,
+        firstName: clerkUser.firstName || 'User',
+        lastName: clerkUser.lastName || '',
         name: `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || 'User',
         role: role,
+        phone: '',
+        status: 'active',
         studentId: studentId,
       });
 

@@ -7,10 +7,17 @@ export interface IUser extends Document {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'admin' | 'teacher' | 'parent';
+  role: 'admin' | 'teacher' | 'parent' | 'tutor';
   phone: string;
   status: 'active' | 'inactive';
   studentId?: mongoose.Types.ObjectId | null;
+  students?: mongoose.Types.ObjectId[];
+  subjects?: string[];
+  username?: string;
+  address?: string;
+  name?: string;
+  tempPassword?: string;
+  requirePasswordChange?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,13 +52,26 @@ const UserSchema = new Schema<IUser>(
       required: true,
       trim: true,
     },
+    name: {
+      type: String,
+      trim: true,
+    },
+    username: {
+      type: String,
+      trim: true,
+    },
     role: {
       type: String,
-      enum: ['admin', 'teacher', 'parent'],
+      enum: ['admin', 'teacher', 'parent', 'tutor'],
       default: 'teacher',
       required: true,
     },
     phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    address: {
       type: String,
       trim: true,
       default: '',
@@ -66,13 +86,25 @@ const UserSchema = new Schema<IUser>(
       ref: 'Student',
       default: null,
     },
+    students: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Student',
+    }],
+    subjects: [{
+      type: String,
+    }],
+    tempPassword: {
+      type: String,
+    },
+    requirePasswordChange: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
   }
 );
-
-// ✅ REMOVED DUPLICATE INDEXES - email and clerkUserId already have unique: true
 
 const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 

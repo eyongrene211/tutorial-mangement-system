@@ -10,8 +10,6 @@ export async function GET() {
       message: '✅ Database seeded!' 
     });
   } catch (error) {
-      
-    // Safely handle unknown error types
     let errorMessage = 'An unexpected error occurred';
     
     if (error instanceof Error) {
@@ -20,7 +18,7 @@ export async function GET() {
       errorMessage = error;
     }
     
-    console.error('Seed error:', error); // Log for debugging
+    console.error('Seed error:', error);
     
     return NextResponse.json({ 
       success: false, 
@@ -29,30 +27,25 @@ export async function GET() {
   }
 }
 
-// Add this AFTER creating admin user, BEFORE creating students
-
-// CREATE SAMPLE TUTOR
+// NOTE: If you want to create a tutor user, add this to your seed function:
+/*
 const tutorEmail = 'tutor@example.com';
 let tutorUser = await User.findOne({ email: tutorEmail });
 
 if (!tutorUser) {
   console.log('Creating tutor user...');
   
-  // You need to manually create this user in Clerk first!
-  // Go to Clerk Dashboard -> Users -> Add User
-  // Email: tutor@example.com
-  // Then get the Clerk ID and paste it here
-  
   tutorUser = await User.create({
-    clerkId: 'YOUR_CLERK_ID_HERE', // Replace with actual Clerk ID
+    clerkUserId: `tutor_${Date.now()}`,
     email: tutorEmail,
     firstName: 'John',
     lastName: 'Tutor',
     role: 'tutor',
-    subjects: ['Mathematics', 'Physics', 'Chemistry'], // Assign subjects
+    phone: '+237123456789',
+    status: 'active',
+    subjects: ['Mathematics', 'Physics', 'Chemistry'],
   });
   
   console.log('✅ Tutor user created');
-} else {
-  console.log('Tutor user already exists');
 }
+*/

@@ -17,7 +17,7 @@ interface StudentQueryFilter extends Record<string, unknown> {
 
 // Helper function to generate temporary password
 function generateTempPassword(): string {
-  return nanoid(10); // 10-character random password
+  return nanoid(10);
 }
 
 // GET - Fetch all students with filters
@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
 
           console.log('✅ Creating new parent user:', { username, parentEmail });
 
-          // Create new parent user
+          // ✅ FIXED: Use correct field names from IUser interface
           const newParentUser = await User.create({
             clerkUserId: `manual_${nanoid(12)}`,
             email: parentEmail,
