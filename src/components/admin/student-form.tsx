@@ -4,10 +4,23 @@ import { useState } from 'react';
 import { IconX }    from '@tabler/icons-react';
 import toast        from 'react-hot-toast';
 
+// ✅ FIXED: Properly typed student interface
+interface Student {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  classLevel: string;
+  parentId?: {
+    email: string;
+  };
+  phone?: string;
+  address?: string;
+}
+
 interface StudentFormProps {
   onClose: () => void;
   onSuccess: () => void;
-  student?: any;
+  student?: Student;
 }
 
 export function StudentForm({ onClose, onSuccess, student }: StudentFormProps) {

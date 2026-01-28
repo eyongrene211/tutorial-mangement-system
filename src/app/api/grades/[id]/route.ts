@@ -3,7 +3,6 @@ import { auth }                      from '@clerk/nextjs/server';
 import connectDB                     from '@/lib/mongodb';
 import Grade                         from '@/models/Grade';
 
-
 // GET single grade
 export async function GET(
   request: NextRequest,
@@ -120,10 +119,11 @@ export async function PUT(
     console.log('✅ Grade updated successfully:', updatedGrade);
 
     return NextResponse.json(updatedGrade, { status: 200 });
-  } catch (error: any) {
+  } catch (error) {
+    // ✅ FIXED: Typed the error properly
     console.error('❌ Error updating grade:', error);
     
-    if (error.name === 'ValidationError') {
+    if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     

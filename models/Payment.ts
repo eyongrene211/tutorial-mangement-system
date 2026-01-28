@@ -103,8 +103,8 @@ const PaymentSchema = new mongoose.Schema<IPayment>(
   }
 );
 
-// Update balance and status before saving - FIXED VERSION
-PaymentSchema.pre('save', function(next) {
+// ✅ FIXED: Removed next() callback - not needed in Mongoose 6+
+PaymentSchema.pre('save', function() {
   // Calculate balance
   this.balance = this.totalAmount - this.amountPaid;
   
@@ -118,8 +118,7 @@ PaymentSchema.pre('save', function(next) {
   } else {
     this.paymentStatus = 'overpaid';
   }
-  
-  next();
+  // No next() call needed
 });
 
 export default mongoose.models.Payment || mongoose.model<IPayment>('Payment', PaymentSchema);

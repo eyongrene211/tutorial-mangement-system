@@ -3,7 +3,6 @@ import { auth }                      from '@clerk/nextjs/server';
 import Grade                         from '@/models/Grade';
 import connectDB                     from '@/lib/mongodb';
 
-
 // GET all grades
 export async function GET(request: NextRequest) {
   try {
@@ -106,10 +105,11 @@ export async function POST(request: NextRequest) {
     console.log('✅ Grade created successfully:', populatedGrade);
 
     return NextResponse.json(populatedGrade, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
+    // ✅ FIXED: Typed the error properly
     console.error('❌ Error creating grade:', error);
     
-    if (error.name === 'ValidationError') {
+    if (error instanceof Error && error.name === 'ValidationError') {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     
