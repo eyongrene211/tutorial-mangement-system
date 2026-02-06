@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     if (body.records && Array.isArray(body.records)) {
       const records = body.records;
 
-      // ✅ FIXED: Extract date from top-level OR from first record
+      // Extract date from top-level OR from first record
       let attendanceDate = body.date;
       if (!attendanceDate && records.length > 0 && records[0].date) {
         attendanceDate = records[0].date;
@@ -171,10 +171,18 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
     }
 
-    // Handle single attendance record
-    const { student, date, status } = body;
+    // ✅ FIXED: Handle single attendance record - accept both studentId and student
+    const studentId = body.studentId || body.student;
+    const { date, status, subject, remarks } = body;
 
-    if (!student || !date || !status) {
+    console.log('🔍 Single attendance request:');
+    console.log('  - studentId:', studentId);
+    console.log('  - date:', date);
+    console.log('  - status:', status);
+    console.log('  - subject:', subject);
+
+    if (!studentId || !date || !status) {
+      console.error('❌ Missing required fields:', { studentId, date, status });
       return NextResponse.json(
         { error: 'Student, date, and status are required' },
         { status: 400 }
@@ -186,7 +194,7 @@ export async function POST(request: NextRequest) {
 
     // Check if attendance already exists
     const existingAttendance = await Attendance.findOne({
-      student,
+      student: studentId,
       date: targetDate,
     });
 
@@ -194,18 +202,27 @@ export async function POST(request: NextRequest) {
       existingAttendance.status = status;
       await existingAttendance.save();
       console.log('✅ Updated attendance:', existingAttendance._id);
-      return NextResponse.json(existingAttendance);
+      
+      const populated = await Attendance.findById(existingAttendance._id)
+        .populate('student', 'firstName lastName classLevel')
+        .lean();
+      
+      return NextResponse.json(populated);
     }
 
     const newAttendance = await Attendance.create({
-      student,
+      student: studentId,
       date: targetDate,
       status,
     });
 
     console.log('✅ Created attendance:', newAttendance._id);
 
-    return NextResponse.json(newAttendance, { status: 201 });
+    const populated = await Attendance.findById(newAttendance._id)
+      .populate('student', 'firstName lastName classLevel')
+      .lean();
+
+    return NextResponse.json(populated, { status: 201 });
   } catch (error) {
     console.error('❌ Error saving attendance:', error);
     return NextResponse.json(

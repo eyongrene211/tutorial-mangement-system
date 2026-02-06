@@ -1,14 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
-import connectDB                     from '../../../../../lib/mongodb';
-import Attendance                    from '../../../../../models/Attendance';
-import User                          from '../../../../../models/User';
-
+import connectDB                     from '@/lib/mongodb';
+import Attendance                    from '@/models/Attendance';
+import User                          from '@/models/User';
 
 interface RouteParams {
   params: Promise<{
     id: string;
   }>;
+}
+
+// Define the shape of the update payload to avoid 'any'
+interface AttendanceUpdate {
+  student?: string;
+  studentId?: string; // Temporarily allow this for mapping
+  status?: string;
+  date?: string | Date;
+  subject?: string;
+  remarks?: string;
+  recordedBy?: string;
 }
 
 // GET single attendance record
@@ -27,7 +37,7 @@ export async function GET(request: NextRequest, context: RouteParams) {
 
     const attendance = await Attendance.findById(id)
       .populate('student', 'firstName lastName classLevel')
-      .populate('recordedBy', 'firstName lastName');
+      .lean();
 
     if (!attendance) {
       return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 });
@@ -51,7 +61,7 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 
     await connectDB();
 
-    const currentUser = await User.findOne({ clerkId: userId });
+    const currentUser = await User.findOne({ clerkUserId: userId });
     if (!currentUser || currentUser.role === 'parent') {
       return NextResponse.json(
         { error: 'Access denied. Admins and tutors only.' },
@@ -61,24 +71,45 @@ export async function PUT(request: NextRequest, context: RouteParams) {
 
     const params = await context.params;
     const { id } = params;
-    const body = await request.json();
+    const body: AttendanceUpdate = await request.json();
+
+    console.log('📝 Updating attendance:', id);
+    console.log('📝 Update data:', body);
+
+    // Map studentId to student and clean up the object
+    const updatePayload: Partial<AttendanceUpdate> = { ...body };
+    
+    if (body.studentId && !body.student) {
+      updatePayload.student = body.studentId;
+    }
+    
+    // Always track who last modified the record
+    updatePayload.recordedBy = currentUser._id.toString();
+
+    // Remove the extra key before sending to MongoDB
+    delete updatePayload.studentId;
 
     const updatedAttendance = await Attendance.findByIdAndUpdate(
       id,
-      body,
+      updatePayload,
       { new: true, runValidators: true }
     )
       .populate('student', 'firstName lastName classLevel')
-      .populate('recordedBy', 'firstName lastName');
+      .lean();
 
     if (!updatedAttendance) {
       return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 });
     }
 
+    console.log('✅ Updated attendance:', id);
+
     return NextResponse.json(updatedAttendance);
   } catch (error) {
-    console.error('Error updating attendance:', error);
-    return NextResponse.json({ error: 'Failed to update attendance record' }, { status: 500 });
+    console.error('❌ Error updating attendance:', error);
+    return NextResponse.json({ 
+      error: 'Failed to update attendance record',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
@@ -93,7 +124,7 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
 
     await connectDB();
 
-    const currentUser = await User.findOne({ clerkId: userId });
+    const currentUser = await User.findOne({ clerkUserId: userId });
     if (!currentUser || currentUser.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied. Admins only.' }, { status: 403 });
     }
@@ -107,9 +138,11 @@ export async function DELETE(request: NextRequest, context: RouteParams) {
       return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 });
     }
 
+    console.log('✅ Deleted attendance:', id);
+
     return NextResponse.json({ message: 'Attendance record deleted successfully' });
   } catch (error) {
-    console.error('Error deleting attendance:', error);
+    console.error('❌ Error deleting attendance:', error);
     return NextResponse.json({ error: 'Failed to delete attendance record' }, { status: 500 });
   }
 }
