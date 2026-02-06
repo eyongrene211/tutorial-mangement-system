@@ -6,12 +6,15 @@ import User                  from 'models/User';
 import Student               from 'models/Student';
 import Grade                 from 'models/Grade';
 import Attendance            from 'models/Attendance';
+import Payment               from 'models/Payment';
 import {
   IconUser,
   IconBook,
   IconCalendarStats,
   IconTrophy,
   IconAlertCircle,
+  IconCash,
+  IconReceipt,
 } from '@tabler/icons-react';
 
 interface StudentData {
@@ -41,7 +44,17 @@ interface AttendanceData {
   status: string;
 }
 
-async function getStudentData(studentId: string) {
+interface PaymentData {
+  _id: string;
+  month: string;
+  totalAmount: number;
+  amountPaid: number;
+  balance: number;
+  status: string;
+  currency: string;
+}
+
+async function getStudentData(studentId: string, parentId: string) {
   try {
     await dbConnect();
 
@@ -73,7 +86,17 @@ async function getStudentData(studentId: string) {
       .lean();
 
     console.log('✅ Found attendance records:', attendance.length);
-    console.log('📅 Attendance dates:', attendance.map(a => a.date));
+
+    // ✅ Get recent payments (last 3 months)
+    const payments = await Payment.find({ parentId })
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+
+    console.log('✅ Found payments:', payments.length);
+
+    // Calculate total outstanding balance
+    const totalOutstanding = payments.reduce((sum, p) => sum + (p.balance || 0), 0);
 
     // Calculate stats
     const totalAttendance = attendance.length;
@@ -89,12 +112,14 @@ async function getStudentData(studentId: string) {
       student,
       grades,
       attendance,
+      payments,
       stats: {
         attendanceRate,
         averageGrade,
         totalGrades: grades.length,
         totalAttendance,
         presentCount,
+        totalOutstanding,
       },
     };
   } catch (error) {
@@ -148,7 +173,8 @@ export default async function ParentDashboardPage() {
   let studentData = null;
   if (dbUser.studentId) {
     console.log('🔍 Fetching data for student ID:', dbUser.studentId.toString());
-    studentData = await getStudentData(dbUser.studentId.toString());
+    console.log('🔍 Parent ID:', dbUser._id.toString());
+    studentData = await getStudentData(dbUser.studentId.toString(), dbUser._id.toString());
   }
 
   // No student linked - show message
@@ -175,7 +201,7 @@ export default async function ParentDashboardPage() {
     );
   }
 
-  const { student, grades, attendance, stats } = studentData;
+  const { student, grades, attendance, payments, stats } = studentData;
 
   return (
     <DashboardLayout userName={fullName} role="parent">
@@ -206,7 +232,7 @@ export default async function ParentDashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {/* Attendance Rate */}
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
@@ -264,7 +290,85 @@ export default async function ParentDashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Outstanding Balance */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  Outstanding
+                </p>
+                <p className={`text-3xl font-bold mt-2 ${stats.totalOutstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                  {stats.totalOutstanding.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">FCFA</p>
+              </div>
+              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${stats.totalOutstanding > 0 ? 'bg-red-100 dark:bg-red-900/20' : 'bg-green-100 dark:bg-green-900/20'}`}>
+                <IconCash className={`w-6 h-6 ${stats.totalOutstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`} />
+              </div>
+            </div>
+          </div>
         </div>
+
+        {/* Recent Payments */}
+        {payments.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Recent Payments
+              </h2>
+              <a
+                href="/dashboard/parent/payments"
+                className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
+              >
+                View all →
+              </a>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {payments.map((payment: PaymentData) => (
+                <div
+                  key={payment._id.toString()}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      {payment.month}
+                    </span>
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                      payment.status === 'paid'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : payment.status === 'partial'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                    }`}>
+                      {payment.status}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Total:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {payment.totalAmount.toLocaleString()} {payment.currency}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Paid:</span>
+                      <span className="font-semibold text-green-600 dark:text-green-400">
+                        {payment.amountPaid.toLocaleString()} {payment.currency}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm border-t border-gray-200 dark:border-gray-700 pt-2">
+                      <span className="text-gray-600 dark:text-gray-400">Balance:</span>
+                      <span className={`font-bold ${payment.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                        {payment.balance.toLocaleString()} {payment.currency}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Recent Attendance */}
         {attendance.length > 0 ? (

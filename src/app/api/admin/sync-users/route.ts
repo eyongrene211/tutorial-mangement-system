@@ -2,23 +2,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient }         from '@clerk/nextjs/server';
 import dbConnect                     from '@/lib/mongodb';
 import User                          from '@/models/User';
-import type { User as ClerkUser }    from '@clerk/nextjs/server';
+import type { 
+  User as ClerkUser, 
+  UserList as ClerkUserList 
+} from '@clerk/nextjs/server';
+import type { ObjectId }             from 'mongoose';
 
-// Define proper types for results
+// ✅ Proper types for results
+interface SyncResultDetail {
+  email: string;
+  status: 'linked' | 'no_clerk_account' | 'error';
+  clerkId?: string;
+  mongoId: string | ObjectId;
+  error?: string;
+}
+
 interface SyncResult {
   matched: number;
   updated: number;
   failed: number;
-  details: Array<{
-    email: string;
-    status: 'linked' | 'no_clerk_account' | 'error';
-    clerkId?: string;
-    mongoId: string | mongoose.Types.ObjectId;
-    error?: string;
-  }>;
+  details: SyncResultDetail[];
 }
 
-// API endpoint to sync MongoDB users with Clerk users by email
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -28,15 +33,13 @@ export async function POST(request: NextRequest) {
 
     await dbConnect();
 
-    // Verify admin
     const requestingUser = await User.findOne({ clerkUserId: userId });
     if (!requestingUser || requestingUser.role !== 'admin') {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 });
     }
 
-    // Find all users with null clerkUserId
     const usersWithoutClerk = await User.find({ clerkUserId: null });
-    console.log(`Found ${usersWithoutClerk.length} users without Clerk IDs`);
+    console.log(`🔍 Found ${usersWithoutClerk.length} users without Clerk IDs`);
 
     const results: SyncResult = {
       matched: 0,
@@ -45,13 +48,15 @@ export async function POST(request: NextRequest) {
       details: []
     };
 
-    // Try to match each user with Clerk by email
+    // ✅ FIXED: Await clerkClient()
+    const clerk = await clerkClient();
+
     for (const dbUser of usersWithoutClerk) {
       try {
         console.log(`Checking Clerk for: ${dbUser.email}`);
         
-        // ✅ FIXED: Proper Clerk client usage with types
-        const clerkUsers = await clerkClient().users.getUserList({
+        // ✅ FIXED: Proper Clerk types
+        const clerkUsers: ClerkUserList = await clerk.users.getUserList({
           emailAddress: [dbUser.email]
         });
 
@@ -59,13 +64,11 @@ export async function POST(request: NextRequest) {
           const clerkUser: ClerkUser = clerkUsers.data[0];
           console.log(`✅ Found Clerk user for ${dbUser.email}: ${clerkUser.id}`);
           
-          // Update MongoDB with Clerk ID
           await User.findByIdAndUpdate(dbUser._id, {
             clerkUserId: clerkUser.id
           });
 
-          // Update Clerk with MongoDB ID and role
-          await clerkClient().users.updateUser(clerkUser.id, {
+          await clerk.users.updateUser(clerkUser.id, {
             publicMetadata: {
               role: dbUser.role,
               dbId: dbUser._id.toString()
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
           results.updated++;
           results.details.push({
             email: dbUser.email,
-            status: 'linked',
+            status: 'linked' as const,
             clerkId: clerkUser.id,
             mongoId: dbUser._id
           });
@@ -84,18 +87,19 @@ export async function POST(request: NextRequest) {
           console.log(`⚠️ No Clerk user found for ${dbUser.email}`);
           results.details.push({
             email: dbUser.email,
-            status: 'no_clerk_account',
+            status: 'no_clerk_account' as const,
             mongoId: dbUser._id
           });
         }
-      } catch (error: any) {
-        console.error(`❌ Error processing ${dbUser.email}:`, error.message);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`❌ Error processing ${dbUser.email}:`, errorMessage);
         results.failed++;
         results.details.push({
           email: dbUser.email,
-          status: 'error',
+          status: 'error' as const,
           mongoId: dbUser._id,
-          error: error.message
+          error: errorMessage
         });
       }
     }
@@ -109,9 +113,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Sync error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Sync failed';
+    console.error('Sync error:', errorMessage);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Sync failed' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

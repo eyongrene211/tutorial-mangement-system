@@ -16,42 +16,42 @@ export function QuickActionsSection() {
       title: 'Add Student',
       description: 'Register a new student',
       icon: IconUserPlus,
-      href: '/dashboard/students',
+      href: '/dashboard/admin/students', // ✅ FIXED
       color: 'blue',
     },
     {
       title: 'Record Attendance',
       description: 'Mark today\'s attendance',
       icon: IconClipboardList,
-      href: '/dashboard/attendance',
+      href: '/dashboard/admin/attendance', // ✅ FIXED
       color: 'green',
     },
     {
       title: 'Record Payment',
       description: 'Add a payment record',
       icon: IconCash,
-      href: '/dashboard/payments',
+      href: '/dashboard/admin/payments', // ✅ FIXED
       color: 'purple',
     },
     {
       title: 'Schedule Session',
       description: 'Create a new session',
       icon: IconCalendarEvent,
-      href: '/dashboard/sessions',
+      href: '/dashboard/admin/sessions', // ✅ FIXED
       color: 'orange',
     },
     {
       title: 'View Reports',
       description: 'Check performance reports',
       icon: IconFileText,
-      href: '/dashboard/reports',
+      href: '/dashboard/admin/reports', // ✅ FIXED
       color: 'pink',
     },
     {
-      title: 'Manage Parents',
-      description: 'View parent accounts',
+      title: 'Manage Users',
+      description: 'View all users',
       icon: IconUsers,
-      href: '/dashboard/parents',
+      href: '/dashboard/admin/users', // ✅ FIXED
       color: 'indigo',
     },
   ];

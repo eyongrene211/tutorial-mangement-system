@@ -3,10 +3,10 @@
 import { useAuth, useSignIn }   from '@clerk/nextjs';
 import { useRouter }            from 'next/navigation';
 import { useState, useEffect }  from 'react';
-import { TutorialIllustration } from '@/components/auth/TutorialIllustration';
 import { LoginForm }            from '@/components/auth/LoginForm';
-import { LoadingSpinner }       from '@/components/auth/LoadingSpinner'; // NEW
-import { ErrorMessage }         from '@/components/auth/ErrorMessage'; // NEW (optional)
+import { LoadingSpinner }       from '@/components/auth/LoadingSpinner';
+import { ErrorMessage }         from '@/components/auth/ErrorMessage';
+import { EduTrackIllustration } from '@/components/auth/EduTrackIllustration';
 
 export default function SignInPage() {
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
@@ -24,7 +24,6 @@ export default function SignInPage() {
     }
   }, [authLoaded, isSignedIn, router]);
 
-  // Use the LoadingSpinner component
   if (!authLoaded || isSignedIn) {
     return <LoadingSpinner />;
   }
@@ -66,52 +65,52 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 overflow-hidden">
-      {/* Background decorations */}
+    <div className="min-h-screen flex bg-gradient-to-br from-purple-50 via-indigo-50 to-teal-50 overflow-hidden">
+      {/* Role-based animated background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
-        <div className="absolute top-0 right-0 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-0 left-0 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+        <div className="absolute top-0 right-0 w-72 h-72 bg-teal-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-amber-200 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
       </div>
 
       <div className="flex flex-col lg:flex-row w-full relative z-10">
-        {/* Left side - Info */}
+        {/* Left side - Enhanced branding */}
         <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12">
-          <div className="max-w-md">
-            <TutorialIllustration />
+          <div className="max-w-lg">
+            <EduTrackIllustration />
             
-            <div className="mt-10">
-              <h1 className="text-4xl font-bold text-gray-800 mb-3">
-                Tutorial Center System
+            <div className="mt-12">
+              <h1 className="text-5xl font-black bg-gradient-to-r from-gray-900 via-purple-900 to-teal-900 bg-clip-text text-transparent mb-6 leading-tight">
+                EduTrack Pro
               </h1>
-              <p className="text-lg text-gray-600 mb-6">
-                Simple management for afterschool tutorial programs
+              <p className="text-xl text-gray-600 mb-8 font-medium leading-relaxed">
+                Professional tutorial center management system
               </p>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mt-0.5">
-                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                  <div className="flex-shrink-0 w-8 h-8 bg-purple-600 rounded-2xl flex items-center justify-center mt-0.5 shadow-lg">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
                     </svg>
                   </div>
-                  <p className="ml-3 text-gray-700">Track student attendance and sessions</p>
+                  <p className="ml-4 text-lg text-gray-700 font-medium">Real-time attendance tracking</p>
                 </div>
                 <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mt-0.5">
-                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                  <div className="flex-shrink-0 w-8 h-8 bg-teal-600 rounded-2xl flex items-center justify-center mt-0.5 shadow-lg">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
                     </svg>
                   </div>
-                  <p className="ml-3 text-gray-700">Manage payments and fees</p>
+                  <p className="ml-4 text-lg text-gray-700 font-medium">Secure payment management</p>
                 </div>
                 <div className="flex items-start">
-                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center mt-0.5">
-                    <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                  <div className="flex-shrink-0 w-8 h-8 bg-amber-600 rounded-2xl flex items-center justify-center mt-0.5 shadow-lg">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
                     </svg>
                   </div>
-                  <p className="ml-3 text-gray-700">Keep parents updated on progress</p>
+                  <p className="ml-4 text-lg text-gray-700 font-medium">Parent progress insights</p>
                 </div>
               </div>
             </div>
@@ -119,25 +118,48 @@ export default function SignInPage() {
         </div>
 
         {/* Right side - Login form */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-12">
           <div className="w-full max-w-md">
-            <div className="bg-white rounded-2xl shadow-xl p-8 lg:p-10">
-              {/* Logo/Header */}
-              <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-xl mb-4">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 p-8 lg:p-10">
+              {/* 🎨 MATCHING SIDEBAR LOGO HEADER */}
+              <div className="text-center mb-10">
+                <div className="mx-auto relative w-20 h-20 bg-gradient-to-br from-purple-600 via-violet-600 to-purple-700 rounded-2xl flex items-center justify-center shadow-2xl mb-6 p-4">
+                  <svg className="w-14 h-14 drop-shadow-lg" viewBox="0 0 80 80" fill="none">
+                    <defs>
+                      <linearGradient id="loginGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#8b5cf6"/>
+                        <stop offset="50%" stopColor="#7c3aed"/>
+                        <stop offset="100%" stopColor="#6d28d9"/>
+                      </linearGradient>
+                      <linearGradient id="loginShine" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3"/>
+                        <stop offset="100%" stopColor="#ffffff" stopOpacity="0"/>
+                      </linearGradient>
+                    </defs>
+                    
+                    <circle cx="40" cy="40" r="36" fill="url(#loginGradient)"/>
+                    <circle cx="40" cy="40" r="36" fill="url(#loginShine)"/>
+                    
+                    <g transform="translate(40, 40)">
+                      <path d="M -16 -8 Q -16 -4 -16 0 Q -16 4 -12 6 L -4 8 L -4 -10 L -12 -12 Q -16 -10 -16 -8 Z" fill="#ffffff" opacity="0.95"/>
+                      <path d="M 16 -8 Q 16 -4 16 0 Q 16 4 12 6 L 4 8 L 4 -10 L 12 -12 Q 16 -10 16 -8 Z" fill="#ffffff" opacity="0.95"/>
+                      <rect x="-1" y="-12" width="2" height="20" fill="#ffffff" opacity="0.85"/>
+                      <circle cx="14" cy="12" r="6" fill="#10b981"/>
+                      <path d="M 11 12 L 13 14 L 17 10" stroke="#ffffff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </g>
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                  Sign In
+                
+                <h2 className="text-3xl lg:text-4xl font-black text-gray-900 mb-3 bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text">
+                  Welcome to EduTrack
                 </h2>
-                <p className="text-gray-600 text-sm">
-                  Enter your credentials to continue
+                <p className="text-gray-600 text-lg font-medium">
+                  Sign in to access your dashboard
                 </p>
               </div>
 
-              {/* Login Form */}
+              <ErrorMessage error={error} />
+
               <LoginForm
                 email={email}
                 password={password}
@@ -149,17 +171,22 @@ export default function SignInPage() {
                 onSubmit={handleSubmit}
               />
 
-              {/* Footer note */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <p className="text-center text-sm text-gray-600">
+              <div className="mt-8 pt-8 border-t border-gray-200/50">
+                <p className="text-center text-sm text-gray-500">
                   Need an account? Contact your administrator
                 </p>
               </div>
             </div>
 
             {/* Mobile branding */}
-            <div className="lg:hidden mt-6 text-center">
-              <p className="text-gray-600 text-sm">Tutorial Center Management System</p>
+            <div className="lg:hidden mt-8 text-center">
+              <div className="inline-flex items-center space-x-2 text-purple-900 font-semibold mb-1">
+                <svg className="w-5 h-5" viewBox="0 0 80 80" fill="none">
+                  <circle cx="40" cy="40" r="36" fill="#8b5cf6"/>
+                </svg>
+                <span>EduTrack Pro</span>
+              </div>
+              <p className="text-gray-600 text-sm">Tutorial Center Management</p>
             </div>
           </div>
         </div>
@@ -167,28 +194,14 @@ export default function SignInPage() {
 
       <style jsx>{`
         @keyframes blob {
-          0% {
-            transform: translate(0px, 0px) scale(1);
-          }
-          33% {
-            transform: translate(30px, -50px) scale(1.1);
-          }
-          66% {
-            transform: translate(-20px, 20px) scale(0.9);
-          }
-          100% {
-            transform: translate(0px, 0px) scale(1);
-          }
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
         }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
+        .animate-blob { animation: blob 7s infinite; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
       `}</style>
     </div>
   );

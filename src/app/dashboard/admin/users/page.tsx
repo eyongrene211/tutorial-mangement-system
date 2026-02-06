@@ -52,6 +52,7 @@ export default function UsersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const [formData, setFormData] = useState<FormDataType>({
     email: '',
@@ -235,6 +236,34 @@ export default function UsersManagementPage() {
     }
   };
 
+  // --- Sync Users Without Clerk IDs ---
+  const handleSyncToClerk = async () => {
+  if (!confirm('Sync users without Clerk IDs? This will link MongoDB users to existing Clerk accounts by email.')) {
+    return;
+  }
+
+  try {
+    setSyncing(true);
+    const response = await fetch('/api/admin/sync-users', { method: 'POST' });
+    const data = await response.json();
+
+    if (response.ok) {
+      const noClerkCount = data.details.filter((d: any) => d.status === 'no_clerk_account').length;
+      const message = `✅ Synced ${data.updated} users!${noClerkCount > 0 ? ` ${noClerkCount} users not found in Clerk.` : ''}`;
+      toast.success(message);
+      fetchUsers();
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (error: any) {
+    toast.error(error.message || 'Sync failed');
+  } finally {
+    setSyncing(false);
+  }
+};
+
+
+
   const resetForm = () => {
     setFormData({
       email: '',
@@ -290,7 +319,7 @@ export default function UsersManagementPage() {
       <DashboardLayout userName={loggedInUserName} role="admin">
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex justify-between items-center">
+         <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                 User Management
@@ -299,16 +328,40 @@ export default function UsersManagementPage() {
                 Manage system users, roles, and permissions
               </p>
             </div>
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
-              }}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
-            >
-              <IconPlus className="w-5 h-5" />
-              <span>Add User</span>
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleSyncToClerk}
+                disabled={syncing}
+                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors shadow-sm"
+              >
+                {syncing ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>Sync to Clerk</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  resetForm();
+                  setShowModal(true);
+                }}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-sm"
+              >
+                <IconPlus className="w-5 h-5" />
+                <span>Add User</span>
+              </button>
+            </div>
           </div>
 
           {/* Stats Cards */}

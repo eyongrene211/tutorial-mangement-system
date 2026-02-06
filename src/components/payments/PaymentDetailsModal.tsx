@@ -1,27 +1,20 @@
 'use client';
 
-import { IconX, IconDownload, IconReceipt } from '@tabler/icons-react';
+import { useState }                                  from 'react';
+import { IconX, IconReceipt, IconPrinter, IconEdit } from '@tabler/icons-react';
+import EditPaymentModal                              from '../admin/EditPaymentModal';
 
 interface Payment {
   _id: string;
-  studentId: {
-    firstName: string;
-    lastName: string;
-    classLevel: string;
-  } | null;
-  parentId: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone?: string;
-  } | null;
+  studentId: { _id: string; firstName: string; lastName: string; classLevel: string; } | null;
+  parentId: { firstName: string; lastName: string; email: string; phone?: string; } | null;
   classLevel: string;
   month: string;
   totalAmount: number;
   amountPaid: number;
   balance: number;
   currency: string;
-  paymentStatus: string;
+  status: string; // Synced with schema
   payments: Array<{
     amount: number;
     paymentDate: string;
@@ -38,144 +31,121 @@ interface PaymentDetailsModalProps {
   isAdmin: boolean;
 }
 
-export default function PaymentDetailsModal({ payment, onClose, isAdmin }: PaymentDetailsModalProps) {
+export default function PaymentDetailsModal({ payment: initialPayment, onClose, isAdmin }: PaymentDetailsModalProps) {
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [payment, setPayment] = useState(initialPayment);
+
   const handlePrint = () => {
     window.print();
   };
 
+  // If edit modal is open, show that instead
+  if (showEditModal) {
+    return (
+      <EditPaymentModal 
+        payment={payment} 
+        onClose={() => setShowEditModal(false)} 
+        onSuccess={() => {
+          // This would ideally re-fetch or you can close and refresh parent
+          setShowEditModal(false);
+          onClose(); 
+        }} 
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <IconReceipt className="w-7 h-7 text-indigo-600" />
-            Payment Details
-          </h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrint}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
-            >
-              <IconDownload className="w-5 h-5" />
-              Print Receipt
-            </button>
-            <button
-              onClick={onClose}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              <IconX className="w-6 h-6" />
-            </button>
+        <div className="flex justify-between items-center p-6 border-b dark:border-gray-700">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+              <IconReceipt className="w-6 h-6 text-indigo-600" />
+            </div>
+            <h2 className="text-xl font-bold dark:text-white">Payment Details</h2>
           </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
+            <IconX className="w-6 h-6" />
+          </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Student & Parent Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Student Information</h3>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {payment.studentId ? `${payment.studentId.firstName} ${payment.studentId.lastName}` : 'N/A'}
+        {/* Body */}
+        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
+              <p className="text-xs text-gray-500 uppercase font-bold">Student</p>
+              <p className="font-semibold dark:text-white">
+                {payment.studentId?.firstName ?? 'N/A'} {payment.studentId?.lastName ?? ''}
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Class: {payment.classLevel}</p>
+              <p className="text-sm text-gray-500">{payment.classLevel}</p>
             </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
+              <p className="text-xs text-gray-500 uppercase font-bold">Billing Month</p>
+              <p className="font-semibold dark:text-white">{payment.month}</p>
+              <p className="text-sm text-gray-500 capitalize">
+                Status: <span className={payment.balance <= 0 ? 'text-green-600' : 'text-orange-500'}>
+                  {(payment.status ?? 'pending').replace('_', ' ')}
+                </span>
+              </p>
+            </div>
+          </div>
 
-            {isAdmin && payment.parentId && (
-              <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Parent Information</h3>
-                <p className="text-lg font-bold text-gray-900 dark:text-white">
-                  {payment.parentId.firstName} {payment.parentId.lastName}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">{payment.parentId.email}</p>
-                {payment.parentId.phone && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">{payment.parentId.phone}</p>
+          <div className="border dark:border-gray-700 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900/50">
+                <tr>
+                  <th className="px-4 py-3 text-left">Date</th>
+                  <th className="px-4 py-3 text-left">Receipt #</th>
+                  <th className="px-4 py-3 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y dark:divide-gray-700">
+                {payment.payments.map((p, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3">{new Date(p.paymentDate).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 font-mono text-xs">{p.receiptNumber}</td>
+                    <td className="px-4 py-3 text-right font-bold">{p.amount.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="divide-y dark:divide-gray-700 border-t dark:border-gray-700">
+                <tr className="bg-gray-50/50 dark:bg-gray-900/20">
+                  <td colSpan={2} className="px-4 py-2 text-gray-500">Total Fee</td>
+                  <td className="px-4 py-2 text-right font-semibold">{payment.totalAmount.toLocaleString()} {payment.currency}</td>
+                </tr>
+                <tr className="bg-indigo-50 dark:bg-indigo-900/20 font-bold">
+                  <td colSpan={2} className="px-4 py-3">Total Paid</td>
+                  <td className="px-4 py-3 text-right text-indigo-600">{payment.amountPaid.toLocaleString()} {payment.currency}</td>
+                </tr>
+                {payment.balance > 0 && (
+                  <tr className="bg-red-50 dark:bg-red-900/20 font-bold">
+                    <td colSpan={2} className="px-4 py-3 text-red-600">Balance Due</td>
+                    <td className="px-4 py-3 text-right text-red-600">{payment.balance.toLocaleString()} {payment.currency}</td>
+                  </tr>
                 )}
-              </div>
-            )}
-          </div>
-
-          {/* Payment Summary */}
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-6 rounded-lg">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment Summary - {payment.month}</h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Monthly Fee</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {payment.totalAmount.toLocaleString()} {payment.currency}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Amount Paid</p>
-                <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                  {payment.amountPaid.toLocaleString()} {payment.currency}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Balance</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {payment.balance.toLocaleString()} {payment.currency}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                payment.paymentStatus === 'completed' 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                  : payment.paymentStatus === 'partial'
-                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                  : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-              }`}>
-                Status: {payment.paymentStatus.replace('_', ' ').toUpperCase()}
-              </span>
-            </div>
-          </div>
-
-          {/* Payment History */}
-          <div>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Payment History</h3>
-            <div className="space-y-3">
-              {payment.payments.map((p, index) => (
-                <div key={index} className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        Receipt: {p.receiptNumber}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {new Date(p.paymentDate).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Method: <span className="capitalize">{p.paymentMethod.replace('_', ' ')}</span>
-                      </p>
-                      {p.notes && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 italic">
-                          Note: {p.notes}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {p.amount.toLocaleString()} {payment.currency}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+              </tfoot>
+            </table>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="bg-gray-50 dark:bg-gray-700 p-6 border-t border-gray-200 dark:border-gray-600">
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            <p>TutorialMS - Afterschool Tutorial Management System</p>
-            <p className="mt-1">This is an official payment receipt</p>
-          </div>
+        {/* Actions */}
+        <div className="p-6 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-3">
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors"
+          >
+            <IconPrinter className="w-4 h-4" /> Print
+          </button>
+          
+          {isAdmin && (
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+            >
+              <IconEdit className="w-4 h-4" /> Edit Record
+            </button>
+          )}
         </div>
       </div>
     </div>

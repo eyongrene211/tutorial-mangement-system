@@ -1,61 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth }                      from '@clerk/nextjs/server';
-
 import connectDB                     from '@/lib/mongodb';
 import Payment                       from '@/models/Payment';
 import Student                       from '@/models/Student';
+import mongoose                      from 'mongoose';
 
-// GET - Fetch payments
+interface PaymentRequestBody {
+  studentId: string;
+  totalAmount: number;
+  amountPaid?: number;
+  month: string;
+  paymentDate?: string;
+  paymentMethod?: string;
+  notes?: string;
+}
+
+interface ErrorDetail {
+  path: string;
+  message: string;
+}
+
+function normalizeClassLevel(classLevel: string): string {
+  if (!classLevel) return 'Form 1';
+  
+  const clean = classLevel.trim();
+  
+  const validEnums = [
+    'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5', 
+    'Lower Sixth', 'Upper Sixth', 
+    'Form1', 'Form2', 'Form3', 'Form4', 'Form5', 
+    'LowerSixth', 'UpperSixth'
+  ];
+
+  if (validEnums.includes(clean)) return clean;
+  
+  return clean.replace(/(\D+)(\d+)/, '$1 $2'); 
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     await connectDB();
-
+    
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
     const parentId = searchParams.get('parentId');
-
-    let payments;
-
-    if (role === 'admin') {
-      payments = await Payment.find()
-        .populate({
-          path: 'studentId',
-          select: 'firstName lastName classLevel clerkUserId',
-        })
-        .populate({
-          path: 'parentId',
-          select: 'firstName lastName clerkUserId email phone',
-        })
-        .sort({ createdAt: -1 })
-        .lean();
-    } else if (role === 'parent' && parentId) {
-      payments = await Payment.find({ parentId })
-        .populate({
-          path: 'studentId',
-          select: 'firstName lastName classLevel',
-        })
-        .sort({ createdAt: -1 })
-        .lean();
-    } else {
-      return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
+    
+    console.log('📋 Payment API GET request:', { role, parentId });
+    
+    const query = role === 'parent' && parentId 
+      ? { parentId } 
+      : {};
+    
+    console.log('🔍 Using query:', query);
+    
+    const payments = await Payment.find(query)
+      .populate('studentId', 'firstName lastName classLevel')
+      .populate('parentId', 'firstName lastName email phone')
+      .sort({ createdAt: -1 })
+      .lean();
+    
+    console.log(`✅ Found ${payments.length} payments ${parentId ? 'for parent ' + parentId : 'total'}`);
+    
+    if (payments.length > 0) {
+      console.log('📦 Sample payment:', {
+        _id: payments[0]._id,
+        studentId: payments[0].studentId,
+        parentId: payments[0].parentId,
+        status: payments[0].status,
+        month: payments[0].month
+      });
     }
-
-    // Filter out null references
-    payments = payments.filter(p => p.studentId && p.parentId);
-
-    return NextResponse.json({ payments }, { status: 200 });
-  } catch (error) {
-    console.error('Error fetching payments:', error);
-    return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 });
+    
+    return NextResponse.json({ payments });
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Fetch Payments Error:', errorMessage);
+    return NextResponse.json({ 
+      error: 'Failed to fetch payments',
+      details: errorMessage 
+    }, { status: 500 });
   }
 }
 
-// POST - Create new payment record or add payment to existing record (Admin only)
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
@@ -64,83 +90,104 @@ export async function POST(request: NextRequest) {
     }
 
     await connectDB();
+    const body = await request.json() as PaymentRequestBody;
 
-    const body = await request.json();
-    const {
-      studentId,
-      month,
-      totalAmount,
-      paymentAmount,
-      paymentMethod,
-      paymentDate,
-      notes,
-    } = body;
+    console.log('📝 Creating payment for student:', body.studentId);
 
-    // Validate student exists
-    const student = await Student.findById(studentId).populate('parentId');
+    if (!body.studentId || !body.totalAmount) {
+      return NextResponse.json({ error: 'Student and Total Amount are required' }, { status: 400 });
+    }
+
+    const student = await Student.findById(body.studentId).lean();
     if (!student) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+      console.error('❌ Student not found:', body.studentId);
+      return NextResponse.json({ error: 'Student record not found' }, { status: 404 });
     }
 
-    if (!student.parentId) {
-      return NextResponse.json({ error: 'Student has no parent' }, { status: 400 });
+    console.log('👨‍👩‍👧 Student found:', {
+      id: student._id,
+      name: `${student.firstName} ${student.lastName}`,
+      parentUser: student.parentUser,
+      hasParent: !!student.parentUser
+    });
+
+    if (!student.parentUser) {
+      return NextResponse.json({ 
+        error: 'This student has no parent user assigned. Please link a parent to this student first.' 
+      }, { status: 400 });
     }
 
-    // Check if payment record exists for this student and month
-    let paymentRecord = await Payment.findOne({ studentId, month });
+    const receiptNumber = `TUT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const initialPaymentEntry = {
+      amount: Number(body.amountPaid || 0),
+      paymentDate: body.paymentDate ? new Date(body.paymentDate) : new Date(),
+      paymentMethod: body.paymentMethod || 'cash',
+      receiptNumber: receiptNumber,
+      receivedBy: userId,
+      notes: body.notes || 'Initial payment',
+    };
 
-    // Generate receipt number
-    const year = new Date().getFullYear();
-    const count = await Payment.countDocuments();
-    const receiptNumber = `TUT-${year}-${String(count + 1).padStart(5, '0')}`;
+    const normalizedClassLevel = normalizeClassLevel(student.classLevel || '');
 
-    if (paymentRecord) {
-      // Add to existing payment record
-      paymentRecord.payments.push({
-        amount: paymentAmount,
-        paymentDate: paymentDate || new Date(),
-        paymentMethod,
-        receiptNumber,
-        receivedBy: userId,
-        notes,
-      });
-      paymentRecord.amountPaid += paymentAmount;
-      await paymentRecord.save();
-    } else {
-      // Create new payment record
-      paymentRecord = await Payment.create({
-        studentId,
-        parentId: student.parentId._id,
-        classLevel: student.classLevel,
-        month,
-        totalAmount,
-        amountPaid: paymentAmount,
-        payments: [{
-          amount: paymentAmount,
-          paymentDate: paymentDate || new Date(),
-          paymentMethod,
-          receiptNumber,
-          receivedBy: userId,
-          notes,
-        }],
-        createdBy: userId,
-      });
-    }
+    const newPayment = new Payment({
+      studentId: student._id,
+      parentId: student.parentUser,
+      classLevel: normalizedClassLevel,
+      month: body.month,
+      totalAmount: Number(body.totalAmount),
+      amountPaid: Number(body.amountPaid || 0),
+      currency: 'XAF',
+      payments: [initialPaymentEntry],
+      createdBy: userId,
+    });
 
-    const populatedPayment = await Payment.findById(paymentRecord._id)
+    await newPayment.save();
+
+    console.log('✅ Payment created successfully:', {
+      id: newPayment._id,
+      receiptNumber,
+      status: newPayment.status,
+      balance: newPayment.balance
+    });
+
+    const populatedPayment = await Payment.findById(newPayment._id)
       .populate('studentId', 'firstName lastName classLevel')
       .populate('parentId', 'firstName lastName email phone')
       .lean();
 
     return NextResponse.json({ 
       success: true, 
+      message: 'Payment record created successfully',
       payment: populatedPayment 
     }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating payment:', error);
+
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Payment POST Error:', error);
+    
+    // ✅ PERFECT: Simple, safe, TypeScript-compliant error handling
+    if (error instanceof mongoose.Error.ValidationError && error.errors) {
+      const errorDetails: ErrorDetail[] = Object.keys(error.errors).map((field) => {
+        const err = error.errors[field];
+        return {
+          path: field,
+          message: typeof err === 'object' && err !== null && 'message' in err 
+            ? String(err.message) 
+            : `Invalid value for ${field}`
+        };
+      });
+
+      console.error('Validation errors:', errorDetails);
+      return NextResponse.json({ 
+        error: 'Validation failed',
+        details: errorDetails,
+        message: errorMessage
+      }, { status: 400 });
+    }
+
     return NextResponse.json({ 
-      error: 'Failed to create payment',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: 'Internal Server Error',
+      details: errorMessage 
     }, { status: 500 });
   }
 }
