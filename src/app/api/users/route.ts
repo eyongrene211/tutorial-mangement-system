@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse }      from 'next/server';
 import { auth, currentUser, clerkClient } from '@clerk/nextjs/server';
-import dbConnect                          from 'lib/mongodb';
-import User                               from 'models/User';
+import dbConnect                          from '@/lib/mongodb'; // Ensure path is correct (@/ alias usually preferred)
+import User                               from '@/models/User';
 import { nanoid }                         from 'nanoid';
 
 export async function GET(request: NextRequest) {
@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
 
     await dbConnect();
 
+    // Initialize Clerk Client (Fix for: Property 'users' does not exist...)
+    const client = await clerkClient();
+
     const requestingUser = await User.findOne({ clerkUserId: userId });
     
     if (!requestingUser || requestingUser.role !== 'admin') {
@@ -95,7 +98,8 @@ export async function POST(request: NextRequest) {
           console.log('📧 Creating Clerk user with email invitation...');
           
           // Create user in Clerk with email invitation
-          const clerkUser = await clerkClient.users.createUser({
+          // Note: using 'client' variable we created earlier
+          const clerkUser = await client.users.createUser({
             emailAddress: [email],
             firstName: fName,
             lastName: lName,
@@ -111,7 +115,7 @@ export async function POST(request: NextRequest) {
           console.log('✅ Clerk user created:', clerkUserId);
 
           // Send invitation email
-          await clerkClient.invitations.createInvitation({
+          await client.invitations.createInvitation({
             emailAddress: email,
             redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard`,
             publicMetadata: {
@@ -120,10 +124,11 @@ export async function POST(request: NextRequest) {
           });
 
           console.log('✅ Invitation email sent');
-        } catch (clerkError: any) {
-          console.error('❌ Clerk creation failed:', clerkError.message);
+        } catch (clerkError: unknown) {
+          const errorMessage = clerkError instanceof Error ? clerkError.message : 'Unknown Clerk error';
+          console.error('❌ Clerk creation failed:', errorMessage);
           return NextResponse.json(
-            { error: `Clerk account creation failed: ${clerkError.message}` },
+            { error: `Clerk account creation failed: ${errorMessage}` },
             { status: 500 }
           );
         }
@@ -137,7 +142,7 @@ export async function POST(request: NextRequest) {
           temporaryPassword = `${nanoid(12)}!A1`;
           
           // Create user in Clerk with password
-          const clerkUser = await clerkClient.users.createUser({
+          const clerkUser = await client.users.createUser({
             emailAddress: [email],
             password: temporaryPassword,
             firstName: fName,
@@ -152,10 +157,11 @@ export async function POST(request: NextRequest) {
 
           clerkUserId = clerkUser.id;
           console.log('✅ Clerk user created with temp password:', clerkUserId);
-        } catch (clerkError: any) {
-          console.error('❌ Clerk creation failed:', clerkError.message);
+        } catch (clerkError: unknown) {
+          const errorMessage = clerkError instanceof Error ? clerkError.message : 'Unknown Clerk error';
+          console.error('❌ Clerk creation failed:', errorMessage);
           return NextResponse.json(
-            { error: `Clerk account creation failed: ${clerkError.message}` },
+            { error: `Clerk account creation failed: ${errorMessage}` },
             { status: 500 }
           );
         }
@@ -189,7 +195,7 @@ export async function POST(request: NextRequest) {
     // Update Clerk user with MongoDB ID
     if (clerkUserId) {
       try {
-        await clerkClient.users.updateUser(clerkUserId, {
+        await client.users.updateUser(clerkUserId, {
           publicMetadata: {
             role: role || 'parent',
             dbId: newUser._id.toString()
@@ -209,10 +215,11 @@ export async function POST(request: NextRequest) {
       temporaryPassword: temporaryPassword || undefined
     }, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating user:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to create user';
     return NextResponse.json(
-      { error: error.message || 'Failed to create user' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

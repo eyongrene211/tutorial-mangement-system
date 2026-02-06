@@ -4,17 +4,30 @@ import { useState }                                  from 'react';
 import { IconX, IconReceipt, IconPrinter, IconEdit } from '@tabler/icons-react';
 import EditPaymentModal                              from '../admin/EditPaymentModal';
 
+// Update this interface to match your global Payment type exactly
 interface Payment {
   _id: string;
-  studentId: { _id: string; firstName: string; lastName: string; classLevel: string; } | null;
-  parentId: { firstName: string; lastName: string; email: string; phone?: string; } | null;
+  studentId: { 
+    _id: string; 
+    firstName: string; 
+    lastName: string; 
+    classLevel: string; 
+  } | null;
+  parentId: { 
+    _id: string; // Added this to resolve the error
+    firstName: string; 
+    lastName: string; 
+    email: string; 
+    phone?: string; 
+  } | null;
   classLevel: string;
   month: string;
   totalAmount: number;
   amountPaid: number;
   balance: number;
   currency: string;
-  status: string; // Synced with schema
+  status: string;
+  paymentStatus?: string; 
   payments: Array<{
     amount: number;
     paymentDate: string;
@@ -33,20 +46,20 @@ interface PaymentDetailsModalProps {
 
 export default function PaymentDetailsModal({ payment: initialPayment, onClose, isAdmin }: PaymentDetailsModalProps) {
   const [showEditModal, setShowEditModal] = useState(false);
-  const [payment, setPayment] = useState(initialPayment);
+  // Remove the static state for payment if you want it to reflect edits immediately,
+  // or use the initialPayment prop directly.
+  const [payment] = useState(initialPayment);
 
   const handlePrint = () => {
     window.print();
   };
 
-  // If edit modal is open, show that instead
   if (showEditModal) {
     return (
       <EditPaymentModal 
-        payment={payment} 
+        payment={{ ...payment, paymentStatus: payment.paymentStatus ?? '' }} 
         onClose={() => setShowEditModal(false)} 
         onSuccess={() => {
-          // This would ideally re-fetch or you can close and refresh parent
           setShowEditModal(false);
           onClose(); 
         }} 
@@ -55,10 +68,10 @@ export default function PaymentDetailsModal({ payment: initialPayment, onClose, 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 print:p-0">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden print:shadow-none print:rounded-none">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b dark:border-gray-700">
+        <div className="flex justify-between items-center p-6 border-b dark:border-gray-700 print:hidden">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
               <IconReceipt className="w-6 h-6 text-indigo-600" />
@@ -71,17 +84,17 @@ export default function PaymentDetailsModal({ payment: initialPayment, onClose, 
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto print:max-h-full print:overflow-visible">
           <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-              <p className="text-xs text-gray-500 uppercase font-bold">Student</p>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-transparent dark:border-gray-700">
+              <p className="text-xs text-gray-500 uppercase font-bold mb-1">Student</p>
               <p className="font-semibold dark:text-white">
                 {payment.studentId?.firstName ?? 'N/A'} {payment.studentId?.lastName ?? ''}
               </p>
               <p className="text-sm text-gray-500">{payment.classLevel}</p>
             </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl">
-              <p className="text-xs text-gray-500 uppercase font-bold">Billing Month</p>
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-transparent dark:border-gray-700">
+              <p className="text-xs text-gray-500 uppercase font-bold mb-1">Billing Month</p>
               <p className="font-semibold dark:text-white">{payment.month}</p>
               <p className="text-sm text-gray-500 capitalize">
                 Status: <span className={payment.balance <= 0 ? 'text-green-600' : 'text-orange-500'}>
@@ -95,28 +108,34 @@ export default function PaymentDetailsModal({ payment: initialPayment, onClose, 
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
-                  <th className="px-4 py-3 text-left">Date</th>
-                  <th className="px-4 py-3 text-left">Receipt #</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Date</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300">Receipt #</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-300">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y dark:divide-gray-700">
-                {payment.payments.map((p, i) => (
-                  <tr key={i}>
-                    <td className="px-4 py-3">{new Date(p.paymentDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 font-mono text-xs">{p.receiptNumber}</td>
-                    <td className="px-4 py-3 text-right font-bold">{p.amount.toLocaleString()}</td>
+                {payment.payments.length > 0 ? (
+                  payment.payments.map((p, i) => (
+                    <tr key={i} className="dark:text-gray-300">
+                      <td className="px-4 py-3">{new Date(p.paymentDate).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 font-mono text-xs">{p.receiptNumber}</td>
+                      <td className="px-4 py-3 text-right font-bold">{p.amount.toLocaleString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-8 text-center text-gray-500">No payment records found</td>
                   </tr>
-                ))}
+                )}
               </tbody>
               <tfoot className="divide-y dark:divide-gray-700 border-t dark:border-gray-700">
                 <tr className="bg-gray-50/50 dark:bg-gray-900/20">
                   <td colSpan={2} className="px-4 py-2 text-gray-500">Total Fee</td>
-                  <td className="px-4 py-2 text-right font-semibold">{payment.totalAmount.toLocaleString()} {payment.currency}</td>
+                  <td className="px-4 py-2 text-right font-semibold dark:text-gray-300">{payment.totalAmount.toLocaleString()} {payment.currency}</td>
                 </tr>
                 <tr className="bg-indigo-50 dark:bg-indigo-900/20 font-bold">
-                  <td colSpan={2} className="px-4 py-3">Total Paid</td>
-                  <td className="px-4 py-3 text-right text-indigo-600">{payment.amountPaid.toLocaleString()} {payment.currency}</td>
+                  <td colSpan={2} className="px-4 py-3 text-indigo-900 dark:text-indigo-300">Total Paid</td>
+                  <td className="px-4 py-3 text-right text-indigo-600 dark:text-indigo-400">{payment.amountPaid.toLocaleString()} {payment.currency}</td>
                 </tr>
                 {payment.balance > 0 && (
                   <tr className="bg-red-50 dark:bg-red-900/20 font-bold">
@@ -130,10 +149,10 @@ export default function PaymentDetailsModal({ payment: initialPayment, onClose, 
         </div>
 
         {/* Actions */}
-        <div className="p-6 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-3">
+        <div className="p-6 bg-gray-50 dark:bg-gray-900/50 flex justify-end gap-3 print:hidden">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white transition-colors"
           >
             <IconPrinter className="w-4 h-4" /> Print
           </button>
@@ -141,7 +160,7 @@ export default function PaymentDetailsModal({ payment: initialPayment, onClose, 
           {isAdmin && (
             <button
               onClick={() => setShowEditModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm"
             >
               <IconEdit className="w-4 h-4" /> Edit Record
             </button>

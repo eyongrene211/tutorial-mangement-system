@@ -27,6 +27,7 @@ interface Payment {
     classLevel: string;
   } | null;
   parentId: {
+    _id: string;
     firstName: string;
     lastName: string;
     email: string;

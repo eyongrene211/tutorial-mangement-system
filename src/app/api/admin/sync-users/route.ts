@@ -2,26 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, clerkClient }         from '@clerk/nextjs/server';
 import dbConnect                     from '@/lib/mongodb';
 import User                          from '@/models/User';
-import type { 
-  User as ClerkUser, 
-  UserList as ClerkUserList 
-} from '@clerk/nextjs/server';
-import type { ObjectId }             from 'mongoose';
-
-// ✅ Proper types for results
-interface SyncResultDetail {
-  email: string;
-  status: 'linked' | 'no_clerk_account' | 'error';
-  clerkId?: string;
-  mongoId: string | ObjectId;
-  error?: string;
-}
+import mongoose                      from 'mongoose';
+import type { User as ClerkUser }    from '@clerk/nextjs/server';
 
 interface SyncResult {
   matched: number;
   updated: number;
   failed: number;
-  details: SyncResultDetail[];
+  details: Array<{
+    email: string;
+    status: 'linked' | 'no_clerk_account' | 'error';
+    clerkId?: string;
+    mongoId: string | mongoose.Types.ObjectId;
+    error?: string;
+  }>;
 }
 
 export async function POST(request: NextRequest) {
@@ -39,7 +33,9 @@ export async function POST(request: NextRequest) {
     }
 
     const usersWithoutClerk = await User.find({ clerkUserId: null });
-    console.log(`🔍 Found ${usersWithoutClerk.length} users without Clerk IDs`);
+    
+    // Initialize the Clerk client once
+    const clerk = await clerkClient();
 
     const results: SyncResult = {
       matched: 0,
@@ -48,21 +44,14 @@ export async function POST(request: NextRequest) {
       details: []
     };
 
-    // ✅ FIXED: Await clerkClient()
-    const clerk = await clerkClient();
-
     for (const dbUser of usersWithoutClerk) {
       try {
-        console.log(`Checking Clerk for: ${dbUser.email}`);
-        
-        // ✅ FIXED: Proper Clerk types
-        const clerkUsers: ClerkUserList = await clerk.users.getUserList({
+        const clerkUsers = await clerk.users.getUserList({
           emailAddress: [dbUser.email]
         });
 
         if (clerkUsers.data.length > 0) {
           const clerkUser: ClerkUser = clerkUsers.data[0];
-          console.log(`✅ Found Clerk user for ${dbUser.email}: ${clerkUser.id}`);
           
           await User.findByIdAndUpdate(dbUser._id, {
             clerkUserId: clerkUser.id
@@ -79,32 +68,28 @@ export async function POST(request: NextRequest) {
           results.updated++;
           results.details.push({
             email: dbUser.email,
-            status: 'linked' as const,
+            status: 'linked',
             clerkId: clerkUser.id,
             mongoId: dbUser._id
           });
         } else {
-          console.log(`⚠️ No Clerk user found for ${dbUser.email}`);
           results.details.push({
             email: dbUser.email,
-            status: 'no_clerk_account' as const,
+            status: 'no_clerk_account',
             mongoId: dbUser._id
           });
         }
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`❌ Error processing ${dbUser.email}:`, errorMessage);
+        const message = error instanceof Error ? error.message : 'Unknown error';
         results.failed++;
         results.details.push({
           email: dbUser.email,
-          status: 'error' as const,
+          status: 'error',
           mongoId: dbUser._id,
-          error: errorMessage
+          error: message
         });
       }
     }
-
-    console.log('Sync complete:', results);
 
     return NextResponse.json({
       success: true,
@@ -113,11 +98,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Sync failed';
-    console.error('Sync error:', errorMessage);
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : 'Sync failed';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

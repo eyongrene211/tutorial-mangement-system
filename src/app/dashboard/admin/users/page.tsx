@@ -87,7 +87,7 @@ export default function UsersManagementPage() {
       }
 
       setUsers(data);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching users:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to load users';
       toast.error(errorMessage);
@@ -97,31 +97,31 @@ export default function UsersManagementPage() {
   };
 
   const fetchStudents = async () => {
-  try {
-    const response = await fetch('/api/students');
-    
-    if (!response.ok) {
-      console.error('Failed to fetch students:', response.status);
+    try {
+      const response = await fetch('/api/students');
+      
+      if (!response.ok) {
+        console.error('Failed to fetch students:', response.status);
+        setStudents([]);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setStudents(data);
+      } else if (data.students && Array.isArray(data.students)) {
+        setStudents(data.students);
+      } else {
+        console.error('Invalid students data format:', data);
+        setStudents([]);
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching students:', error);
       setStudents([]);
-      return;
     }
-    
-    const data = await response.json();
-    
-    // Ensure data is an array
-    if (Array.isArray(data)) {
-      setStudents(data);
-    } else if (data.students && Array.isArray(data.students)) {
-      setStudents(data.students);
-    } else {
-      console.error('Invalid students data format:', data);
-      setStudents([]);
-    }
-  } catch (error) {
-    console.error('Error fetching students:', error);
-    setStudents([]);
-  }
-};
+  };
 
 
   const fetchSubjects = async () => {
@@ -143,7 +143,7 @@ export default function UsersManagementPage() {
           'Geography'
         ]);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching subjects:', error);
       setSubjects([
         'Mathematics',
@@ -192,7 +192,7 @@ export default function UsersManagementPage() {
       setShowModal(false);
       resetForm();
       fetchUsers();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving user:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to save user';
       toast.error(errorMessage);
@@ -229,7 +229,7 @@ export default function UsersManagementPage() {
 
       toast.success('User deleted successfully! 🗑️');
       fetchUsers();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error deleting user:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete user';
       toast.error(errorMessage);
@@ -238,31 +238,37 @@ export default function UsersManagementPage() {
 
   // --- Sync Users Without Clerk IDs ---
   const handleSyncToClerk = async () => {
-  if (!confirm('Sync users without Clerk IDs? This will link MongoDB users to existing Clerk accounts by email.')) {
-    return;
-  }
-
-  try {
-    setSyncing(true);
-    const response = await fetch('/api/admin/sync-users', { method: 'POST' });
-    const data = await response.json();
-
-    if (response.ok) {
-      const noClerkCount = data.details.filter((d: any) => d.status === 'no_clerk_account').length;
-      const message = `✅ Synced ${data.updated} users!${noClerkCount > 0 ? ` ${noClerkCount} users not found in Clerk.` : ''}`;
-      toast.success(message);
-      fetchUsers();
-    } else {
-      throw new Error(data.error);
+    if (!confirm('Sync users without Clerk IDs? This will link MongoDB users to existing Clerk accounts by email.')) {
+      return;
     }
-  } catch (error: any) {
-    toast.error(error.message || 'Sync failed');
-  } finally {
-    setSyncing(false);
-  }
-};
 
+    try {
+      setSyncing(true);
+      const response = await fetch('/api/admin/sync-users', { method: 'POST' });
+      const data = await response.json();
 
+      if (response.ok) {
+        // Fix: Use a specific type instead of 'any' for the filter
+        interface SyncDetail { status: string }
+        
+        const noClerkCount = data.details.filter(
+          (d: SyncDetail) => d.status === 'no_clerk_account'
+        ).length;
+
+        const message = `✅ Synced ${data.updated} users!${noClerkCount > 0 ? ` ${noClerkCount} users not found in Clerk.` : ''}`;
+        toast.success(message);
+        fetchUsers();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: unknown) {
+      // Fix: Use safe error checking instead of 'error: any'
+      const errorMessage = error instanceof Error ? error.message : 'Sync failed';
+      toast.error(errorMessage);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const resetForm = () => {
     setFormData({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Webhook }                   from 'svix';
+import { WebhookEvent }              from '@clerk/nextjs/server';
 import dbConnect                     from '@/lib/mongodb';
 import User                          from '@/models/User';
 
@@ -13,19 +14,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing headers' }, { status: 400 });
     }
 
-    const payload = await req.json();
-    const body = JSON.stringify(payload);
+    // Get the body as a raw string for verification
+    const body = await req.text();
 
     const webhookSecret = process.env.CLERK_WEBHOOK_SECRET!;
     const wh = new Webhook(webhookSecret);
     
-    let evt: any;
+    let evt: WebhookEvent;
+
     try {
       evt = wh.verify(body, {
         'svix-id': svix_id,
         'svix-timestamp': svix_timestamp,
         'svix-signature': svix_signature,
-      });
+      }) as WebhookEvent;
     } catch (err) {
       return NextResponse.json({ error: 'Verification failed' }, { status: 400 });
     }
@@ -33,11 +35,13 @@ export async function POST(req: NextRequest) {
     await dbConnect();
 
     const eventType = evt.type;
-    const clerkUser = evt.data;
 
     switch (eventType) {
-      case 'user.created':
-        const role = clerkUser.public_metadata?.role || 'parent';
+      case 'user.created': {
+        const clerkUser = evt.data;
+        const metadata = clerkUser.public_metadata as { role?: string };
+        const role = metadata?.role || 'parent';
+        
         await User.findOneAndUpdate(
           { clerkUserId: clerkUser.id },
           {
@@ -52,30 +56,39 @@ export async function POST(req: NextRequest) {
           { upsert: true, new: true }
         );
         break;
+      }
 
-      case 'user.updated':
+      case 'user.updated': {
+        const clerkUser = evt.data;
+        const metadata = clerkUser.public_metadata as { role?: string };
+
         await User.findOneAndUpdate(
           { clerkUserId: clerkUser.id },
           {
             email: clerkUser.email_addresses[0]?.email_address || '',
             firstName: clerkUser.first_name || 'User',
             lastName: clerkUser.last_name || '',
-            role: clerkUser.public_metadata?.role || 'parent',
+            role: metadata?.role || 'parent',
           }
         );
         break;
+      }
 
-      case 'user.deleted':
+      case 'user.deleted': {
+        const clerkUser = evt.data;
         await User.findOneAndUpdate(
           { clerkUserId: clerkUser.id },
           { status: 'inactive' }
         );
         break;
+      }
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Webhook error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Safely extract the error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
